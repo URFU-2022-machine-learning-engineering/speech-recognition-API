@@ -44,7 +44,7 @@ func main() {
 		// Define root handler
 		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 			if r.Method == "GET" {
-				fmt.Fprint(w, "Online")
+				fmt.Fprint(w, "Server is online\n")
 			} else {
 				// Return a 405 Method Not Allowed response for non-GET requests
 				w.WriteHeader(http.StatusMethodNotAllowed)
@@ -54,6 +54,7 @@ func main() {
 
 	// Define the HTTP endpoint to receive the audio file from the frontend
 	http.HandleFunc("/upload", func(w http.ResponseWriter, r *http.Request) {
+		log.Println("Incoming request:", r.Method, r.URL.Path)
 		// Parse the multipart form
 		err := r.ParseMultipartForm(32 << 20) // 32 MB
 		if err != nil {
@@ -64,6 +65,7 @@ func main() {
 		// Get the uploaded file from the frontend
 		file, handler, err := r.FormFile("file")
 		if err != nil {
+			log.Println("Error getting uploaded file:", err)
 			http.Error(w, "Failed to get uploaded file", http.StatusBadRequest)
 			return
 		}
@@ -79,6 +81,7 @@ func main() {
 			ContentType: handler.Header.Get("Content-Type"),
 		})
 		if err != nil {
+			log.Println("Error uploading file to Minio:", err)
 			http.Error(w, "Failed to upload file to Minio", http.StatusInternalServerError)
 			return
 		}
@@ -87,7 +90,8 @@ func main() {
 		fileURL := fmt.Sprintf("http://%s/%s/%s", minioEndpoint, minioBucket, fileName)
 		w.Write([]byte(fileURL))
 	})
-
+	// Start HTTP server
+	log.Println("Starting server on :8080...")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
