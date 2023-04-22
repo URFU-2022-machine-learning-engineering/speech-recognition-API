@@ -44,11 +44,11 @@ func main() {
 		// Define root handler
 		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 			if r.Method == "GET" {
-				fmt.Fprint(w, "Server is online\n")
+				fmt.Fprintln(w, "Server is online")
 			} else {
 				// Return a 405 Method Not Allowed response for non-GET requests
 				w.WriteHeader(http.StatusMethodNotAllowed)
-				fmt.Fprint(w, "Method Not Allowed")
+				fmt.Fprintln(w, "Method Not Allowed")
 			}
 		})
 
