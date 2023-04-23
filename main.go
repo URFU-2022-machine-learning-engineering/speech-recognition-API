@@ -3,104 +3,60 @@ package main
 import (
 	"fmt"
 	"log"
-	"math/rand"
 	"net/http"
-	"os"
 	"path/filepath"
-
-	"github.com/minio/minio-go/v7/pkg/credentials"
-	"github.com/minio/minio-go/v7"
-	"github.com/joho/godotenv"
 )
 
-
-func main() {
-	// Load environment variables from .env.local file
-	err := godotenv.Load(".env.local")
-	if err != nil {
-		log.Fatal("Error loading .env.local file:", err)
+// Define root handler
+func rootHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "GET" {
+		fmt.Fprintln(w, "Server is online")
+	} else {
+		// Return a 405 Method Not Allowed response for non-GET requests
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		fmt.Fprintln(w, "Method Not Allowed")
 	}
-
-	// Get Minio access key and secret key from environment variables
-	minioAccessKey := os.Getenv("MINIO_ACCESS_KEY")
-	minioSecretKey := os.Getenv("MINIO_SECRET_KEY")
-	minioBucket := os.Getenv("MINIO_BUCKET")
-
-	// Set up Minio client
-	minioEndpoint := os.Getenv("MINIO_ENDPOINT")
-	minioUseSSL := false
-
-
-
-	// Create a new Minio client
-	minioClient, err := minio.New(minioEndpoint, &minio.Options{
-		Creds:  credentials.NewStaticV4(minioAccessKey, minioSecretKey, ""),
-		Secure: minioUseSSL,
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-
-		// Define root handler
-		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-			if r.Method == "GET" {
-				fmt.Fprintln(w, "Server is online")
-			} else {
-				// Return a 405 Method Not Allowed response for non-GET requests
-				w.WriteHeader(http.StatusMethodNotAllowed)
-				fmt.Fprintln(w, "Method Not Allowed")
-			}
-		})
-
-	// Define the HTTP endpoint to receive the audio file from the frontend
-	http.HandleFunc("/upload", func(w http.ResponseWriter, r *http.Request) {
-		log.Println("Incoming request:", r.Method, r.URL.Path)
-		// Parse the multipart form
-		err := r.ParseMultipartForm(32 << 20) // 32 MB
-		if err != nil {
-			http.Error(w, "Failed to parse multipart form", http.StatusBadRequest)
-			return
-		}
-
-		// Get the uploaded file from the frontend
-		file, handler, err := r.FormFile("file")
-		if err != nil {
-			log.Println("Error getting uploaded file:", err)
-			http.Error(w, "Failed to get uploaded file", http.StatusBadRequest)
-			return
-		}
-		defer file.Close()
-
-		// Create a unique file name to store in Minio
-		fileName := handler.Filename
-		fileExt := filepath.Ext(fileName)
-		fileName = fmt.Sprintf("%s%s", generateRandomString(16), fileExt)
-
-		// Upload the file to Minio
-		_, err = minioClient.PutObject(r.Context(), minioBucket, fileName, file, handler.Size, minio.PutObjectOptions{
-			ContentType: handler.Header.Get("Content-Type"),
-		})
-		if err != nil {
-			log.Println("Error uploading file to Minio:", err)
-			http.Error(w, "Failed to upload file to Minio", http.StatusInternalServerError)
-			return
-		}
-
-		// Return the uploaded file URL to the frontend
-		fileURL := fmt.Sprintf("http://%s/%s/%s", minioEndpoint, minioBucket, fileName)
-		w.Write([]byte(fileURL))
-	})
-	// Start HTTP server
-	log.Println("Starting server on :8080...")
-	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
-// Helper function to generate a random string
-func generateRandomString(length int) string {
-	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	b := make([]byte, length)
-	for i := range b {
-		b[i] = charset[rand.Intn(len(charset))]
+// uploadHandler handles file uploads
+func uploadHandler(w http.ResponseWriter, r *http.Request) {
+	file, handler, err := r.FormFile("file")
+	if err != nil {
+		log.Println("Failed to get uploaded file:", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
-	return string(b)
+	defer file.Close()
+
+	// err = checkFileSignature(file)
+	// if err != nil {
+	// 	log.Println("File signature check failed:", err)
+	// 	w.WriteHeader(http.StatusBadRequest)
+	// 	return
+	// }
+	fileName := handler.Filename
+	fileExt := filepath.Ext(fileName)
+	fileName = fmt.Sprintf("%s%s", generateRandomString(16), fileExt)
+	
+	err = uploadToMinio(fileName, file, handler.Size)
+	if err != nil {
+		log.Println("Failed to upload file to Minio:", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	log.Println("File uploaded successfully to Minio:", handler.Filename)
+
+	// Send success response
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprint(w, "File uploaded successfully")
+}
+
+func main() {
+	// Set up HTTP server and routes
+	http.HandleFunc("/", rootHandler)
+	http.HandleFunc("/upload", uploadHandler)
+
+	log.Println("Server started at :8080")
+	http.ListenAndServe(":8080", nil)
 }
