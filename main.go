@@ -34,6 +34,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	// 	w.WriteHeader(http.StatusBadRequest)
 	// 	return
 	// }
+	
 	fileName := handler.Filename
 	fileExt := filepath.Ext(fileName)
 	fileName = fmt.Sprintf("%s%s", generateRandomString(16), fileExt)
