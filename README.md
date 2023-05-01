@@ -30,11 +30,6 @@ git clone https://github.com/URFU-2022-machine-learning-engineering/speech-recog
 ```bash
 go build
 ```
-3. Set the following environment variables:
-- MINIO_ENDPOINT: the Minio endpoint URL
-- MINIO_ACCESS_KEY: the Minio access key
-- MINIO_SECRET_KEY: the Minio secret key
-- MINIO_BUCKET: the Minio bucket to upload files to
 
 4. Run the application:
 
