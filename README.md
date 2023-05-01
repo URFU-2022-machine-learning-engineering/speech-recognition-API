@@ -60,4 +60,4 @@ The file should be uploaded as a multipart form data with the field name file. I
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the GPL-3.0 license - see the [LICENSE](https://github.com/URFU-2022-machine-learning-engineering/speech-recognition-API/blob/main/LICENSE) file for details.
