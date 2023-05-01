@@ -16,7 +16,7 @@ These instructions will help you run the application.
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/URFU-2022-machine-learning-engineering/speech-recognition-API
+git clone https://github.com/URFU-2022-machine-learning-engineering/speech-recognition-API.git
 ```
 2. Set the following environment variables:
 
