@@ -18,7 +18,7 @@ func checkFileSignature(file multipart.File) (err error) {
 		return err
 	}
 	if size < signatureLength {
-		return fmt.Errorf("File is too small to be an audio file")
+		return fmt.Errorf("file is too small to be an audio file")
 	}
 
 	// Read signature bytes and check if they match an audio file signature
@@ -32,7 +32,7 @@ func checkFileSignature(file multipart.File) (err error) {
 		return err
 	}
 	if !filetype.IsAudio(sig) {
-		return fmt.Errorf("File is not an audio file")
+		return fmt.Errorf("file is not an audio file")
 	}
 
 	// Reset file offset back to beginning of file

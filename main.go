@@ -9,11 +9,15 @@ import (
 	"path/filepath"
 )
 
-type Payload struct {
-	Result resultValue
+type PayloadSuccess struct {
+	Result string
+	Filename string
 }
 
-type resultValue string
+type PayloadError struct {
+	Result string
+}
+
 
 // Define root handler
 func rootHandler(w http.ResponseWriter, r *http.Request) {
@@ -35,7 +39,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 
-		p := Payload{"Failed to get uploaded file"}
+		p := PayloadError{"Failed to get uploaded file"}
 		err := json.NewEncoder(w).Encode(p)
 		if err != nil {
 			return
@@ -45,7 +49,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	defer func(file multipart.File) {
 		err := file.Close()
 		if err != nil {
-
+			return
 		}
 	}(file)
 
@@ -56,7 +60,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 
-		p := Payload{"Failed to upload file"}
+		p := PayloadError{"Failed to upload file"}
 		err := json.NewEncoder(w).Encode(p)
 		if err != nil {
 			return
@@ -75,7 +79,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 
-		p := Payload{"Failed to upload file"}
+		p := PayloadError{"Failed to upload file"}
 		err := json.NewEncoder(w).Encode(p)
 		if err != nil {
 			return
@@ -83,12 +87,11 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println("File uploaded successfully to Minio:", handler.Filename)
+	log.Println("File uploaded successfully to Minio:", fileName)
 	// Send success response
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-
-	p := Payload{"File uploaded successfully"}
+	p := PayloadSuccess{"File %s uploaded successfully", handler.Filename}
 	err = json.NewEncoder(w).Encode(p)
 	if err != nil {
 		return
