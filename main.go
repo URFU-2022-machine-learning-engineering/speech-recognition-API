@@ -6,6 +6,7 @@ import (
 	"log"
 	"mime/multipart"
 	"net/http"
+	"os"
 	"path/filepath"
 )
 
@@ -35,10 +36,8 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	file, handler, err := r.FormFile("file")
 	if err != nil {
 		log.Println("Failed to get uploaded file:", err)
-
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-
 		p := PayloadError{"Failed to get uploaded file"}
 		err := json.NewEncoder(w).Encode(p)
 		if err != nil {
@@ -56,10 +55,8 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	err = checkFileSignature(file)
 	if err != nil {
 		log.Println("File signature check failed:", err)
-
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-
 		p := PayloadError{"Failed to upload file"}
 		err := json.NewEncoder(w).Encode(p)
 		if err != nil {
@@ -68,10 +65,8 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fileName := handler.Filename
-	fileExt := filepath.Ext(fileName)
-	fileName = fmt.Sprintf("%s%s", generateRandomString(16), fileExt)
-
+	fileExt := filepath.Ext(handler.Filename)
+	fileName := fmt.Sprintf("%s%s", generateRandomString(16), fileExt)
 	err = uploadToMinio(fileName, file, handler.Size)
 	if err != nil {
 		log.Println("Failed to upload file to Minio:", err)
@@ -89,10 +84,14 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("File uploaded successfully to Minio:", fileName)
 	// Send success response
+	res, err := sendToProcess(os.Getenv("MINIO_BUCKET"), fileName)
+	if err != nil {
+		log.Println("Field to transcribe file", err)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	p := PayloadSuccess{"File %s uploaded successfully", handler.Filename}
-	err = json.NewEncoder(w).Encode(p)
+	err = json.NewEncoder(w).Encode(res)
 	if err != nil {
 		return
 	}
@@ -103,9 +102,10 @@ func main() {
 	http.HandleFunc("/", rootHandler)
 	http.HandleFunc("/upload", uploadHandler)
 
-	log.Println("Server started at :8080")
-	err := http.ListenAndServe(":8080", nil)
+	log.Println("Server started at 0.0.0.0:8080")
+	err := http.ListenAndServe("0.0.0.0:8080", nil)
 	if err != nil {
 		return
 	}
 }
+
