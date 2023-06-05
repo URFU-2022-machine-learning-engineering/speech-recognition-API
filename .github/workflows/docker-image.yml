@@ -34,5 +34,5 @@ jobs:
           push: true
           tags: |
             ${{ steps.meta.outputs.tags }}
-            latest
+            ${{ steps.meta.outputs }}latest
           labels: ${{ steps.meta.outputs.labels }}
