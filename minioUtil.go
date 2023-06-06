@@ -26,7 +26,7 @@ func uploadToMinio(filename string, file multipart.File, size int64) error {
 	},
 	)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Couldn't create connection to minIO", err)
 		return err
 	}
 
