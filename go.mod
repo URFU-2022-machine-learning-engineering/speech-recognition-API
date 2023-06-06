@@ -4,7 +4,6 @@ go 1.20
 
 require (
 	github.com/h2non/filetype v1.1.3
-	github.com/joho/godotenv v1.5.1
 )
 
 require (
