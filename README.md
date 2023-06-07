@@ -7,7 +7,7 @@ These instructions will help you run the application.
 ## Prerequisites
 
 
-- Go 1.16 or later
+- Go 1.19 or later
 - Minio server
 
 
