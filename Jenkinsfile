@@ -1,29 +1,32 @@
 pipeline {
   agent { label 'home' }
+    environment {
+        IMAGE           = 'dzailz/sr-api:latest'
+        CONTAINER_NAME  = 'sr-api'
+    }
+
   stages {
     stage('prepare') {
     steps {
       sh '''
-        image="dzailz/sr-api:latest"
-        container_name="sr-api"
-        docker_image_id=$(docker images -q "$image")
+        docker_image_id=$(docker images -q ${IMAGE})
 
         if [ ! -z "$docker_image_id" ]; then
-            if [ $(docker stop "$container_name") ]; then
+            if [ $(docker stop ${CONTAINER_NAME}) ]; then
                 echo "container stopped"
             fi
+
             if [ $(docker rmi "$docker_image_id" -f) ]; then
                 echo "image removed"
             fi
         fi
-
       '''
       }
     }
 
     stage('run') {
       steps {
-        sh 'docker run -d --env-file /var/sr-api/.env.local --name sr-api -p 8787:8080 --rm "$image"'
+        sh 'docker run -d --env-file /var/sr-api/.env.local --name sr-api -p 8787:8080 --rm ${IMAGE}'
       }
     }
 
@@ -43,7 +46,6 @@ pipeline {
             attempt_counter=$(($attempt_counter+1))
             sleep 1
         done
-
         '''
       }
     }
