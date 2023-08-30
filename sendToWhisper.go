@@ -12,17 +12,32 @@ import (
 
 type SendData struct {
 	BucketName string `json:"bucket"`
-    FileName   string `json:"file_name"`
+	FileName   string `json:"file_name"`
 }
 
+func processResponse(body []byte) (interface{}, error) {
+	var response interface{}
 
-func sendToProcess(bucketName string, fileName string) (map[string]interface{}, error) {
-	whisper_endpoint := os.Getenv("WHISPER_ENDPOINT")
-	whisper_transcribe := os.Getenv("WHISPER_TRANSCRIBE")
-	whisperTranscribeURL := whisper_endpoint + path.Join(whisper_transcribe)
+	// Attempt to unmarshal the response as JSON
+	err := json.Unmarshal(body, &response)
+	if err == nil {
+		log.Println("Received JSON response:", response)
+		return response, nil
+	}
+
+	// If unmarshaling as JSON fails, treat it as an HTML response
+	htmlResponse := string(body)
+	log.Println("Received HTML response:", htmlResponse)
+	return htmlResponse, nil
+}
+
+func sendToProcess(bucketName string, fileName string) (interface{}, error) {
+	whisperEndpoint := os.Getenv("WHISPER_ENDPOINT")
+	whisperTranscribe := os.Getenv("WHISPER_TRANSCRIBE")
+	whisperTranscribeURL := whisperEndpoint + path.Join(whisperTranscribe)
 
 	log.Println("whisper url", whisperTranscribeURL)
-	// 1. Marshal your data into JSON format
+	// 1. Marshal data into JSON format
 	data := SendData{bucketName, fileName}
 	log.Println("prepared", data)
 	jsonData, err := json.Marshal(data)
@@ -38,7 +53,8 @@ func sendToProcess(bucketName string, fileName string) (map[string]interface{}, 
 	}
 
 	// 3. Set headers
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Type", "application/octet-stream")
+	log.Println("Request prepared", req)
 
 	// 4. Send the request and handle the response
 	client := &http.Client{}
@@ -55,14 +71,8 @@ func sendToProcess(bucketName string, fileName string) (map[string]interface{}, 
 		log.Panicln("Read the response body", err)
 		return nil, err
 	}
+	log.Println("Request was", body)
 
-	// 6. Unmarshal the response JSON
-	var responseJSON map[string]interface{}
-	err = json.Unmarshal(body, &responseJSON)
-	if err != nil {
-		log.Panicln("Unmarshal the response JSON", err)
-		return nil, err
-	}
-	log.Println("Received response:", responseJSON)
-	return responseJSON, nil
+	// 6. Process the response
+	return processResponse(body)
 }

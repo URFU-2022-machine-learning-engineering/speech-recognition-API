@@ -36,7 +36,7 @@ pipeline {
         attempt_counter=0
         max_attempts=10
 
-        until $(curl --output /dev/null --silent --get --fail http://192.168.111.66:8787); do
+        until $(curl --output /dev/null --silent --get --fail http://127.0.0.1:8787); do
             if [ ${attempt_counter} -eq ${max_attempts} ];then
               echo "Max attempts reached"
               exit 1
