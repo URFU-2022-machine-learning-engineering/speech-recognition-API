@@ -1,4 +1,5 @@
-FROM golang:1.20
+# Build stage
+FROM golang:1.20 AS build
 
 WORKDIR /app
 
@@ -7,6 +8,11 @@ RUN go mod download
 COPY *.go ./
 
 RUN CGO_ENABLED=0 GOOS=linux go build -o /sr-api
+
+# Final stage
+FROM scratch
+
+COPY --from=build /sr-api /sr-api
 
 EXPOSE 8080
 
