@@ -10,7 +10,7 @@ import (
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
-// uploadToMinio uploads a file to Minio
+
 func uploadToMinio(filename string, file multipart.File, size int64) error {
 	// Load environment variables from .env.local file
 

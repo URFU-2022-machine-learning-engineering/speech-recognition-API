@@ -20,7 +20,7 @@ type PayloadError struct {
 }
 
 
-// Define root handler
+
 func rootHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		fmt.Fprintln(w, "Server is online")
@@ -31,7 +31,7 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// uploadHandler handles file uploads
+
 func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	file, handler, err := r.FormFile("file")
 	if err != nil {
