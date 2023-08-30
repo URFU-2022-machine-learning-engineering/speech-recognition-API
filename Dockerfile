@@ -10,7 +10,7 @@ COPY *.go ./
 RUN CGO_ENABLED=0 GOOS=linux go build -o /sr-api
 
 # Final stage
-FROM scratch
+FROM golang:1.21
 
 COPY --from=build /sr-api /sr-api
 
