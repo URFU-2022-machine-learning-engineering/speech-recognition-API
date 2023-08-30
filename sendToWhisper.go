@@ -53,7 +53,7 @@ func sendToProcess(bucketName string, fileName string) (interface{}, error) {
 	}
 
 	// 3. Set headers
-	req.Header.Set("Content-Type", "application/octet-stream")
+	req.Header.Set("Content-Type", "application/json")
 	log.Println("Request prepared", req)
 
 	// 4. Send the request and handle the response
