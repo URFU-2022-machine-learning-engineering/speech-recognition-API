@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.20 AS build
+FROM golang:1.21ap AS build
 
 WORKDIR /app
 
@@ -7,7 +7,6 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY *.go ./
 
-RUN apk add --no-cache ca-certificates
 RUN CGO_ENABLED=0 GOOS=linux go build -o /sr-api
 
 # Final stage
