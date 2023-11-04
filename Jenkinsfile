@@ -1,5 +1,5 @@
 pipeline {
-  agent { label 'home' }
+  agent { label 'h-node' }
     environment {
         IMAGE           = 'dzailz/sr-api:latest'
         CONTAINER_NAME  = 'sr-api'
