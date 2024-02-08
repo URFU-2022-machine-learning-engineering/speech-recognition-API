@@ -1,7 +1,8 @@
-package main
+package utils
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -13,8 +14,14 @@ import (
 
 func TestSendToProcess(t *testing.T) {
 	// Store the original value of WHISPER_ENDPOINT and restore it at the end of the test
+	ctx := context.Background()
 	originalWhisperEndpoint := os.Getenv("WHISPER_ENDPOINT")
-	defer os.Setenv("WHISPER_ENDPOINT", originalWhisperEndpoint)
+	defer func(key, value string) {
+		err := os.Setenv(key, value)
+		if err != nil {
+			t.Errorf("Unable to set WHISPER_ENDPOINT ENV '%v", err)
+		}
+	}("WHISPER_ENDPOINT", originalWhisperEndpoint)
 
 	// Mock the environment variable
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -42,15 +49,22 @@ func TestSendToProcess(t *testing.T) {
 		responseData, _ := json.Marshal(responseJSON)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write(responseData)
+		_, err := w.Write(responseData)
+		if err != nil {
+			return
+		}
 	}))
 	defer mockServer.Close()
 
 	// Override the WHISPER_ENDPOINT with the mock server URL
-	os.Setenv("WHISPER_ENDPOINT", mockServer.URL)
+	err := os.Setenv("WHISPER_ENDPOINT", mockServer.URL)
+	if err != nil {
+		t.Errorf("Unable to set WHISPER_ENDPOINT ENV '%v", err)
+		return
+	}
 
 	// Call the handler function
-	response, err := sendToProcess("my-bucket", "example.mp3")
+	response, err := ProcessFileWithContext(ctx, "my-bucket", "example.mp3")
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}

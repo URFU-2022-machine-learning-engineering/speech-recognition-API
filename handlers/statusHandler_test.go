@@ -1,4 +1,4 @@
-package main
+package handlers
 
 import (
 	"net/http"
@@ -17,7 +17,7 @@ func TestRootHandlerPositive(t *testing.T) {
 	rr := httptest.NewRecorder()
 
 	// Call the rootHandler function with the request and response recorder
-	handler := http.HandlerFunc(rootHandler)
+	handler := http.HandlerFunc(StatusHandler)
 	handler.ServeHTTP(rr, req)
 
 	// Check the status code returned by the handler
@@ -45,7 +45,7 @@ func TestRootHandlerNegative(t *testing.T) {
 	rr := httptest.NewRecorder()
 
 	// Call the rootHandler function with the request and response recorder
-	handler := http.HandlerFunc(rootHandler)
+	handler := http.HandlerFunc(StatusHandler)
 	handler.ServeHTTP(rr, req)
 
 	// Check the status code returned by the handler

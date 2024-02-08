@@ -1,16 +1,11 @@
-package main
+package utils
 
 import (
+	"context"
 	"io"
 	"strings"
 	"testing"
 )
-
-// Define a mock implementation of multipart.File for testing purposes
-type mockFile struct {
-	content string
-	offset  int64
-}
 
 func (m *mockFile) Seek(offset int64, whence int) (int64, error) {
 	switch whence {
@@ -46,29 +41,41 @@ func (m *mockFile) Close() error {
 }
 
 func TestCheckFileSignature_ValidAudioFile(t *testing.T) {
-	audioFile := &mockFile{content: "\xFF\xFB" + strings.Repeat("\x00", signatureLength-2)}
+	// Create a context
+	ctx := context.Background()
 
-	err := checkFileSignature(audioFile)
+	audioFile := &mockFile{content: "\xFF\xFB" + strings.Repeat("\x00", SignatureLength-2)}
+
+	// Pass context to the function
+	err := CheckFileSignatureWithContext(ctx, audioFile)
 	if err != nil {
 		t.Errorf("Expected no error for valid audio file, got: %v", err)
 	}
 }
 
 func TestCheckFileSignature_SmallFile(t *testing.T) {
-	smallFile := &mockFile{content: strings.Repeat("\x00", signatureLength-1)}
+	// Create a context
+	ctx := context.Background()
 
-	err := checkFileSignature(smallFile)
-	expectedError := "file is too small to be an audio file"
+	smallFile := &mockFile{content: strings.Repeat("\x00", SignatureLength-1)}
+
+	// Pass context to the function
+	err := CheckFileSignatureWithContext(ctx, smallFile)
+	expectedError := "file size too small" // Update this based on the actual error message your function returns
 	if err == nil || !strings.Contains(err.Error(), expectedError) {
 		t.Errorf("Expected error '%s' for small file, got: %v", expectedError, err)
 	}
 }
 
 func TestCheckFileSignature_NonAudioFile(t *testing.T) {
-	textFile := &mockFile{content: "Hello, world!" + strings.Repeat("\x00", signatureLength-2)}
+	// Create a context
+	ctx := context.Background()
 
-	err := checkFileSignature(textFile)
-	expectedError := "file is not an audio file"
+	textFile := &mockFile{content: "Hello, world!" + strings.Repeat("\x00", SignatureLength-12)} // Adjusted for the new length check
+
+	// Pass context to the function
+	err := CheckFileSignatureWithContext(ctx, textFile)
+	expectedError := "unknown file type" // Update this based on the actual error message your function returns
 	if err == nil || !strings.Contains(err.Error(), expectedError) {
 		t.Errorf("Expected error '%s' for non-audio file, got: %v", expectedError, err)
 	}
