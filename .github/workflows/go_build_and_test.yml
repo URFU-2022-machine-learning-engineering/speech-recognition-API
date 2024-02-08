@@ -19,10 +19,13 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v3
       with:
-        go-version: 1.19
+        go-version: 1.21
 
     - name: Build
       run: go build -v ./...
 
-    - name: Test
-      run: go test -v ./...
+    - name: Test utils
+      run: go test -v utils/
+
+    - name: Test handlers
+      run: go test -v handlers/
