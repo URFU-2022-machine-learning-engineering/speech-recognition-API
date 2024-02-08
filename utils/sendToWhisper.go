@@ -9,7 +9,7 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"os"
+	"net/url"
 	"path"
 )
 
@@ -47,9 +47,20 @@ func ProcessFileWithContext(ctx context.Context, bucketName, fileName string) (i
 	_, span := tracer.Start(ctx, "ProcessFileWithContext")
 	defer span.End()
 
-	whisperEndpoint := os.Getenv("WHISPER_ENDPOINT")
-	whisperTranscribe := os.Getenv("WHISPER_TRANSCRIBE")
-	whisperTranscribeURL := path.Join(whisperEndpoint, whisperTranscribe)
+	whisperEndpoint := GetEnvOrShutdownWithTelemetry(ctx, "WHISPER_ENDPOINT")
+	whisperTranscribe := GetEnvOrShutdownWithTelemetry(ctx, "WHISPER_TRANSCRIBE")
+
+	// Parse the base URL
+	u, err := url.Parse(whisperEndpoint)
+	if err != nil {
+		span.RecordError(err)
+		log.Fatalf("Failed to parse WHISPER_ENDPOINT: %v", err)
+	}
+
+	// Properly append the path
+	u.Path = path.Join(u.Path, whisperTranscribe)
+
+	whisperTranscribeURL := u.String()
 
 	data := SendData{BucketName: bucketName, FileName: fileName}
 	jsonData, err := json.Marshal(data)

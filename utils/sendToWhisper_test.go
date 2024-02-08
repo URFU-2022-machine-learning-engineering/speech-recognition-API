@@ -12,16 +12,21 @@ import (
 	"testing"
 )
 
-func TestSendToProcess(t *testing.T) {
+func TestProcessFileWithContext(t *testing.T) {
 	// Store the original value of WHISPER_ENDPOINT and restore it at the end of the test
 	ctx := context.Background()
 	originalWhisperEndpoint := os.Getenv("WHISPER_ENDPOINT")
-	defer func(key, value string) {
-		err := os.Setenv(key, value)
+	originalTranscribeUri := os.Getenv("WHISPER_TRANSCRIBE")
+	defer func() {
+		err := os.Setenv("WHISPER_ENDPOINT", originalWhisperEndpoint)
 		if err != nil {
 			t.Errorf("Unable to set WHISPER_ENDPOINT ENV '%v", err)
 		}
-	}("WHISPER_ENDPOINT", originalWhisperEndpoint)
+		err = os.Setenv("WHISPER_TRANSCRIBE", originalTranscribeUri)
+		if err != nil {
+			t.Errorf("Unable to set WHISPER_TRANSCRIBE ENV '%v", err)
+		}
+	}()
 
 	// Mock the environment variable
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -60,6 +65,11 @@ func TestSendToProcess(t *testing.T) {
 	err := os.Setenv("WHISPER_ENDPOINT", mockServer.URL)
 	if err != nil {
 		t.Errorf("Unable to set WHISPER_ENDPOINT ENV '%v", err)
+		return
+	}
+	err = os.Setenv("WHISPER_TRANSCRIBE", "/transcribe")
+	if err != nil {
+		t.Errorf("Unable to set WHISPER_TRANSCRIBE ENV '%v", err)
 		return
 	}
 

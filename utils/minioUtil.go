@@ -17,9 +17,9 @@ func UploadToMinioWithContext(ctx context.Context, filename string, file multipa
 	_, span := otel.Tracer("file-utils").Start(ctx, "UploadToMinio")
 	defer span.End()
 
-	minioAccessKey := os.Getenv("MINIO_ACCESS_KEY")
-	minioSecretKey := os.Getenv("MINIO_SECRET_KEY")
-	minioEndpoint := os.Getenv("MINIO_ENDPOINT")
+	minioAccessKey := GetEnvOrShutdownWithTelemetry(ctx, "MINIO_ACCESS_KEY")
+	minioSecretKey := GetEnvOrShutdownWithTelemetry(ctx, "MINIO_SECRET_KEY")
+	minioEndpoint := GetEnvOrShutdownWithTelemetry(ctx, "MINIO_ENDPOINT")
 	minioUseSSL := os.Getenv("MINIO_USE_SSL") == "true"
 
 	// Initialize Minio client

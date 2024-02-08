@@ -61,22 +61,58 @@ func restoreEnvs(
 	originalRootUser string,
 	originalRootPassword string,
 ) {
-	os.Setenv("MINIO_ACCESS_KEY", originalAccessKey)
-	os.Setenv("MINIO_SECRET_KEY", originalSecretKey)
-	os.Setenv("MINIO_BUCKET", originalBucket)
-	os.Setenv("MINIO_USE_SSL", originalUseSSL)
-	os.Setenv("MINIO_ROOT_USER", originalRootUser)
-	os.Setenv("MINIO_ROOT_PASSWORD", originalRootPassword)
+	err := os.Setenv("MINIO_ACCESS_KEY", originalAccessKey)
+	if err != nil {
+		log.Fatalf("Failed to restore original environment variable: %v", err)
+	}
+	err = os.Setenv("MINIO_SECRET_KEY", originalSecretKey)
+	if err != nil {
+		log.Fatalf("Failed to restore original environment variable: %v", err)
+	}
+	err = os.Setenv("MINIO_BUCKET", originalBucket)
+	if err != nil {
+		log.Fatalf("Failed to restore original environment variable: %v", err)
+	}
+	err = os.Setenv("MINIO_USE_SSL", originalUseSSL)
+	if err != nil {
+		log.Fatalf("Failed to restore original environment variable: %v", err)
+	}
+	err = os.Setenv("MINIO_ROOT_USER", originalRootUser)
+	if err != nil {
+		log.Fatalf("Failed to restore original environment variable: %v", err)
+	}
+	err = os.Setenv("MINIO_ROOT_PASSWORD", originalRootPassword)
+	if err != nil {
+		log.Fatalf("Failed to restore original environment variable: %v", err)
+	}
 }
 
 func setupEnvs() {
 	// Set the necessary environment variables for the test
-	os.Setenv("MINIO_ACCESS_KEY", "minioadmin")
-	os.Setenv("MINIO_BUCKET", "test-bucket")
-	os.Setenv("MINIO_SECRET_KEY", "minioadmin")
-	os.Setenv("MINIO_USE_SSL", "false")
-	os.Setenv("MINIO_ROOT_USER", "minioadmin")
-	os.Setenv("MINIO_ROOT_PASSWORD", "minioadmin")
+	err := os.Setenv("MINIO_ACCESS_KEY", "minioadmin")
+	if err != nil {
+		log.Fatalf("Failed to set environment variable: %v", err)
+	}
+	err = os.Setenv("MINIO_BUCKET", "test-bucket")
+	if err != nil {
+		log.Fatalf("Failed to set environment variable: %v", err)
+	}
+	err = os.Setenv("MINIO_SECRET_KEY", "minioadmin")
+	if err != nil {
+		log.Fatalf("Failed to set environment variable: %v", err)
+	}
+	err = os.Setenv("MINIO_USE_SSL", "false")
+	if err != nil {
+		log.Fatalf("Failed to set environment variable: %v", err)
+	}
+	err = os.Setenv("MINIO_ROOT_USER", "minioadmin")
+	if err != nil {
+		log.Fatalf("Failed to set environment variable: %v", err)
+	}
+	err = os.Setenv("MINIO_ROOT_PASSWORD", "minioadmin")
+	if err != nil {
+		log.Fatalf("Failed to set environment variable: %v", err)
+	}
 
 }
 
@@ -119,8 +155,6 @@ func StartMinioTestContainer(ctx context.Context) (*minio.Client, string, func()
 			log.Printf("Failed to terminate MinIO Testcontainer: %v", err)
 		}
 	}
-	enp, err := minioContainer.Endpoint(ctx, "")
-	log.Println(enp)
 
 	return minioClient, minioURL, cleanup
 }
@@ -135,11 +169,8 @@ func TestUploadToMinioWithTestContainer(t *testing.T) {
 
 	defer restoreEnvs(originalAccessKey, originalSecretKey, originalBucket, originalUseSSL, originalRootUser, originalRootPassword)
 	setupEnvs()
-	ac := os.Getenv("MINIO_ACCESS_KEY")
-	log.Println(ac)
 
 	ctx := context.Background()
-	// Inside your test or helper function
 
 	// Start the MinIO Testcontainer
 	minioClient, minioURL, cleanup := StartMinioTestContainer(ctx)
@@ -147,11 +178,21 @@ func TestUploadToMinioWithTestContainer(t *testing.T) {
 
 	// Set MINIO_ENDPOINT environment variable for the test
 	originalEndpoint := os.Getenv("MINIO_ENDPOINT")
-	defer os.Setenv("MINIO_ENDPOINT", originalEndpoint) // Reset after the test
-	os.Setenv("MINIO_ENDPOINT", minioURL)
+	// Reset after the test
+	defer func() {
+		err := os.Setenv("MINIO_ENDPOINT", originalEndpoint)
+		if err != nil {
+			t.Fatalf("Failed to reset environment variable: %v", err)
+		}
+	}()
+
+	err := os.Setenv("MINIO_ENDPOINT", minioURL)
+	if err != nil {
+		t.Fatalf("Failed to set environment variable: %v", err)
+	}
 
 	bucketName := "test-bucket"
-	err := minioClient.MakeBucket(ctx, bucketName, minio.MakeBucketOptions{})
+	err = minioClient.MakeBucket(ctx, bucketName, minio.MakeBucketOptions{})
 	if err != nil {
 		t.Fatalf("Failed to create bucket: %v", err)
 	}
