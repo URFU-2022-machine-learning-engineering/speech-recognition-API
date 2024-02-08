@@ -25,7 +25,7 @@ jobs:
       run: go build -v ./...
 
     - name: Test utils
-      run: go test -v utils/
+      run: go test -v ./utils/
 
     - name: Test handlers
-      run: go test -v handlers/
+      run: go test -v ./handlers/
