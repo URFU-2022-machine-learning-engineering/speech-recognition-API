@@ -29,7 +29,6 @@ func RespondWithError(ctx context.Context, w http.ResponseWriter, code int, mess
 
 // RespondWithSuccess sends a success response and allows for adding tracing information.
 func RespondWithSuccess(ctx context.Context, w http.ResponseWriter, code int, payload interface{}) {
-	// Optionally, add tracing information related to the success response
 	span := trace.SpanFromContext(ctx)
 	span.AddEvent("RespondWithSuccess", trace.WithAttributes(attribute.Int("http.status_code", code)))
 
@@ -38,13 +37,11 @@ func RespondWithSuccess(ctx context.Context, w http.ResponseWriter, code int, pa
 
 	if err := json.NewEncoder(w).Encode(payload); err != nil {
 		log.Printf("Failed to encode success response JSON: %v", err)
-		// Consider logging the error in the span as well
 		span.RecordError(err)
 	}
 }
 
 func RespondWithInfo(ctx context.Context, w http.ResponseWriter, code int) {
-	// Optionally, add tracing information related to the success response
 	span := trace.SpanFromContext(ctx)
 	span.AddEvent("RespondInfo", trace.WithAttributes(attribute.Int("http.status_code", code)))
 
@@ -53,7 +50,6 @@ func RespondWithInfo(ctx context.Context, w http.ResponseWriter, code int) {
 	p := handlers_structure.StatusSuccess{Status: "Server is running"}
 	if err := json.NewEncoder(w).Encode(p); err != nil {
 		log.Printf("Failed to encode success response JSON: %v", err)
-		// Consider logging the error in the span as well
 		span.RecordError(err)
 	}
 

@@ -1,8 +1,11 @@
 package handlers
 
 import (
+	"dzailz.ru/api/handlers/handlers_structure"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -27,10 +30,13 @@ func TestRootHandlerPositive(t *testing.T) {
 	}
 
 	// Check the response body returned by the handler
-	expected := "Server is online\n"
-	if rr.Body.String() != expected {
+	expected := handlers_structure.StatusSuccess{Status: "Server is running"}
+	expectedJson, _ := json.Marshal(expected)
+	expectedStr := strings.TrimSpace(string(expectedJson))
+	actualStr := strings.TrimSpace(rr.Body.String())
+	if actualStr != expectedStr {
 		t.Errorf("handler returned unexpected body: got %v want %v",
-			rr.Body.String(), expected)
+			actualStr, expectedStr)
 	}
 }
 
