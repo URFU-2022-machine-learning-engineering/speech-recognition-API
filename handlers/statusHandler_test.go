@@ -9,9 +9,9 @@ import (
 	"testing"
 )
 
-func TestRootHandlerPositive(t *testing.T) {
+func TestStatusHandlerPositive(t *testing.T) {
 	// Create a new request with the GET method to the root path ("/")
-	req, err := http.NewRequest("GET", "/", nil)
+	req, err := http.NewRequest("GET", "/status", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -40,9 +40,9 @@ func TestRootHandlerPositive(t *testing.T) {
 	}
 }
 
-func TestRootHandlerNegative(t *testing.T) {
+func TestStatusHandlerNegative(t *testing.T) {
 	// Create a new request with the POST method to the root path ("/")
-	req, err := http.NewRequest("POST", "/", nil)
+	req, err := http.NewRequest("POST", "/status", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
