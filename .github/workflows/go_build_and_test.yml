@@ -1,7 +1,4 @@
-# This workflow will build a golang project
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
-
-name: Go
+name: Build and Test
 
 on:
   push:
@@ -10,24 +7,33 @@ on:
     branches: [ "main" ]
 
 jobs:
-
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        go-version: [1.21] # Extend this array to test against multiple versions.
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-    - name: Set up Go
-      uses: actions/setup-go@v3
-      with:
-        go-version: 1.21
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ matrix.go-version }}
 
-    - name: Build
-      run: go build -v ./...
+      - name: Cache Go modules
+        uses: actions/cache@v3
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
 
-    - name: Test utils
-      continue-on-error: true
-      run: go test -v ./utils/
+      - name: Build
+        run: go build -v ./...
 
-    - name: Test handlers
-      continue-on-error: true
-      run: go test -v ./handlers/
+      - name: Test
+        run: |
+          TEST_STATUS=0
+          go test -v ./utils/ || TEST_STATUS=$?
+          go test -v ./handlers/ || TEST_STATUS=$?
+          exit $TEST_STATUS
