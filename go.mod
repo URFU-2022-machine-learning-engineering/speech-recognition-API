@@ -1,14 +1,14 @@
-module dzailz.ru/api
+module sr-api
 
 go 1.21
 
 require (
 	github.com/h2non/filetype v1.1.3
+	github.com/testcontainers/testcontainers-go v0.27.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.47.0
 	go.opentelemetry.io/otel v1.22.0
 	go.opentelemetry.io/otel/exporters/stdout/stdoutmetric v0.45.0
 	go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.22.0
-	go.opentelemetry.io/otel/metric v1.22.0
 	go.opentelemetry.io/otel/sdk v1.22.0
 	go.opentelemetry.io/otel/sdk/metric v1.22.0
 	go.opentelemetry.io/otel/trace v1.22.0
@@ -46,13 +46,13 @@ require (
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
 	github.com/shirou/gopsutil/v3 v3.23.12 // indirect
 	github.com/shoenig/go-m1cpu v0.1.6 // indirect
-	github.com/testcontainers/testcontainers-go v0.27.0 // indirect
-	github.com/testcontainers/testcontainers-go/modules/minio v0.0.0-20240206163528-54b1d8aa22fd // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
 	github.com/yusufpapurcu/wmi v1.2.3 // indirect
+	go.opentelemetry.io/otel/metric v1.22.0 // indirect
 	golang.org/x/exp v0.0.0-20230510235704-dd950f8aeaea // indirect
 	golang.org/x/mod v0.11.0 // indirect
+	golang.org/x/sync v0.5.0 // indirect
 	golang.org/x/tools v0.10.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230711160842-782d3b101e98 // indirect
 	google.golang.org/grpc v1.58.3 // indirect

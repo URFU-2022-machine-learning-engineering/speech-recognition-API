@@ -1,10 +1,10 @@
 package handlers
 
 import (
-	"dzailz.ru/api/handlers/handlers_structure"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"sr-api/handlers/handlers_structure"
 	"strings"
 	"testing"
 )

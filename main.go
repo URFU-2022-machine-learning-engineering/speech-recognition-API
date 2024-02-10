@@ -2,13 +2,13 @@ package main
 
 import (
 	"context"
-	"dzailz.ru/api/handlers"
 	"errors"
 	"log"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"sr-api/handlers"
 	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"

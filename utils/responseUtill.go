@@ -2,13 +2,13 @@ package utils
 
 import (
 	"context"
-	"dzailz.ru/api/handlers/handlers_structure"
 	"encoding/json"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"log"
 	"net/http"
+	"sr-api/handlers/handlers_structure"
 )
 
 // RespondWithError sends an error response along with tracing the operation.

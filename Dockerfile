@@ -7,7 +7,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY * ./
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o /sr-api
+RUN CGO_ENABLED=0 GOOS=linux go build -o /sr-api || (echo "Go build failed" && exit 1)
 
 # Final stage
 FROM scratch

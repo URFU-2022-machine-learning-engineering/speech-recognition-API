@@ -1,9 +1,9 @@
 package handlers
 
 import (
-	"dzailz.ru/api/utils"
 	"fmt"
 	"net/http"
+	"sr-api/utils"
 )
 
 func StatusHandler(w http.ResponseWriter, r *http.Request) {

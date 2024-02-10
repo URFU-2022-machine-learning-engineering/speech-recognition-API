@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	"dzailz.ru/api/utils"
 	"fmt"
+	"sr-api/utils"
 
 	"go.opentelemetry.io/otel/attribute"
 
