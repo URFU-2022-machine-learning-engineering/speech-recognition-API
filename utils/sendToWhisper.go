@@ -6,17 +6,14 @@ import (
 	"encoding/json"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"io"
 	"log"
 	"net/http"
 	"net/url"
 	"path"
+	"sr-api/handlers/handlers_structure"
 )
-
-type SendData struct {
-	BucketName string `json:"bucket"`
-	FileName   string `json:"file_name"`
-}
 
 // processResponse is a function that takes a byte slice as input and attempts to unmarshal it as JSON.
 // If the unmarshalling is successful, it logs the JSON response and returns it.
@@ -44,38 +41,38 @@ func processResponse(body []byte) (interface{}, error) {
 
 func ProcessFileWithContext(ctx context.Context, bucketName, fileName string) (interface{}, error) {
 	tracer := otel.Tracer("utils")
-	_, span := tracer.Start(ctx, "ProcessFileWithContext")
+	ctx, span := tracer.Start(ctx, "ProcessFileWithContext")
 	defer span.End()
-
+	span.AddEvent("Get the environment variables")
 	whisperEndpoint := GetEnvOrShutdownWithTelemetry(ctx, "WHISPER_ENDPOINT")
 	whisperTranscribe := GetEnvOrShutdownWithTelemetry(ctx, "WHISPER_TRANSCRIBE")
-
+	span.AddEvent("Finished getting the environment variables")
 	// Parse the base URL
+	span.AddEvent("Parse the base URL")
 	u, err := url.Parse(whisperEndpoint)
 	if err != nil {
 		span.RecordError(err)
 		log.Fatalf("Failed to parse WHISPER_ENDPOINT: %v", err)
 	}
-
+	span.AddEvent("Finished parsing the base URL")
 	// Properly append the path
 	u.Path = path.Join(u.Path, whisperTranscribe)
-
 	whisperTranscribeURL := u.String()
-
-	data := SendData{BucketName: bucketName, FileName: fileName}
+	span.AddEvent("Prepare the request")
+	data := handlers_structure.SendData{BucketName: bucketName, FileName: fileName}
 	jsonData, err := json.Marshal(data)
 	if err != nil {
 		span.RecordError(err)
 		return nil, err
 	}
-
+	span.AddEvent("Prepare the request")
 	req, err := http.NewRequestWithContext(ctx, "POST", whisperTranscribeURL, bytes.NewBuffer(jsonData))
 	if err != nil {
 		span.RecordError(err)
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-
+	span.AddEvent("Send the request", trace.WithAttributes(attribute.String("request.type", "POST")))
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -88,7 +85,7 @@ func ProcessFileWithContext(ctx context.Context, bucketName, fileName string) (i
 			span.RecordError(err)
 		}
 	}(resp.Body)
-
+	span.AddEvent("Read the file")
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		span.RecordError(err)

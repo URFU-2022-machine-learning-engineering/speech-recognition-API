@@ -1,0 +1,30 @@
+services:
+
+  sr-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    depends_on:
+      jaeger:
+        condition: service_healthy
+    networks:
+      - tracing_net
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "16686:16686" # Jaeger UI
+      - "4318:4318" # HTTP port for Jaeger
+      - "4317:4317" # gRPC port for Jaeger
+    environment:
+      COLLECTOR_OTLP_ENABLED: true
+    networks:
+      - tracing_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:16686"]
+
+networks:
+  tracing_net:
+    name: tracing_net
