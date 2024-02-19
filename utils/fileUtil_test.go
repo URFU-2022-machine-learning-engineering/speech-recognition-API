@@ -80,3 +80,25 @@ func TestCheckFileSignature_NonAudioFile(t *testing.T) {
 		t.Errorf("Expected error '%s' for non-audio file, got: %v", expectedError, err)
 	}
 }
+
+func TestCheckFileSignature_FilePointerResetAfterRead(t *testing.T) {
+	// Create a context
+	ctx := context.Background()
+
+	// Simulate a file with a valid signature that is initially read, then fully processed
+	// The mock file content includes a known valid file signature followed by arbitrary data
+	validSignature := "\xFF\xFB" // Example valid signature for demonstration
+	fileContent := validSignature + strings.Repeat("\x00", SignatureLength-2) + "Extra file content to simulate actual file data beyond the signature"
+	file := &mockFile{content: fileContent}
+
+	// Pass context and the mock file to the function
+	err := CheckFileSignatureWithContext(ctx, file)
+	if err != nil {
+		t.Errorf("Expected no error after file signature read and reset, got: %v", err)
+	}
+
+	// Optionally, assert the file pointer is at the start after the check (if such an assertion is relevant to your logic)
+	if file.offset != 0 {
+		t.Errorf("Expected file pointer to be reset to the start after signature check, but it was at %d", file.offset)
+	}
+}
