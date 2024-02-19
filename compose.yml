@@ -25,6 +25,18 @@ services:
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:16686"]
 
-networks:
-  tracing_net:
-    name: tracing_net
+
+
+#  grafana-agent:
+#    image: grafana/agent:latest
+#    environment:
+#      - AGENT_MODE=flow
+#    volumes:
+#      - ./grafana-agent-flow.river:/etc/agent/config.river
+#    ports:
+#      - "12345:12345"
+#      - "4317:4317" # gRPC port
+#      - "4318:4318" # protobuf port
+#    command:
+#      - run
+#      - /etc/agent/config.river

@@ -3,19 +3,18 @@ package main
 import (
 	"context"
 	"errors"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
-	"go.opentelemetry.io/otel/sdk/resource"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	"log"
-	"time"
-
+	"github.com/rs/zerolog/log"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/stdout/stdoutmetric"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/propagation"
-	"go.opentelemetry.io/otel/sdk/metric"
+	sdkmeter "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.24.0"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"os"
 )
 
 // setupOTelSDK bootstraps the OpenTelemetry pipeline.
@@ -23,6 +22,13 @@ import (
 func setupOTelSDK(ctx context.Context) (shutdown func(context.Context) error, err error) {
 
 	var shutdownFuncs []func(context.Context) error
+	res, err := createResource(ctx)
+	target := os.Getenv("TELEMETRY_GRPC_TARGET")
+	if target == "" {
+		log.Warn().Msg("TELEMETRY_GRPC_TARGET environment variable is not set")
+		log.Warn().Msg("Using default value: localhost:4317")
+		target = "localhost:4317"
+	}
 
 	// shutdown calls cleanup functions registered via shutdownFuncs.
 	// The errors from the calls are joined.
@@ -46,8 +52,9 @@ func setupOTelSDK(ctx context.Context) (shutdown func(context.Context) error, er
 	otel.SetTextMapPropagator(prop)
 
 	// Set up trace provider.
-	tracerProvider, err := initProvider(ctx, "localhost:4317")
+	tracerProvider, err := initTracesProvider(ctx, target, res)
 	if err != nil {
+		log.Error().Err(err).Msg("Failed to initialize tracer provider")
 		handleErr(err)
 		return
 	}
@@ -58,8 +65,9 @@ func setupOTelSDK(ctx context.Context) (shutdown func(context.Context) error, er
 	otel.SetTextMapPropagator(propagation.TraceContext{})
 
 	// Set up meter provider.
-	meterProvider, err := newMeterProvider()
+	meterProvider, err := initMetricsProvider(ctx, target, res)
 	if err != nil {
+		log.Error().Err(err).Msg("Failed to initialize meter provider")
 		handleErr(err)
 		return
 	}
@@ -91,44 +99,60 @@ func newPropagator() propagation.TextMapPropagator {
 //	return traceProvider, nil
 //}
 
-func newMeterProvider() (*metric.MeterProvider, error) {
-	metricExporter, err := stdoutmetric.New()
-	if err != nil {
-		log.Println("Failed to create metric exporter:", err)
-		return nil, err
-	}
+//func newMeterProvider() (*sdkmeter.MeterProvider, error) {
+//	metricExporter, err := stdoutmetric.New()
+//	if err != nil {
+//		log.Error().Err(err).Msg("Failed to create metric exporter:")
+//		return nil, err
+//	}
+//
+//	meterProvider := sdkmeter.NewMeterProvider(
+//		sdkmeter.WithReader(sdkmeter.NewPeriodicReader(metricExporter,
+//			sdkmeter.WithInterval(time.Minute))),
+//	)
+//	return meterProvider, nil
+//}
 
-	meterProvider := metric.NewMeterProvider(
-		metric.WithReader(metric.NewPeriodicReader(metricExporter,
-			metric.WithInterval(time.Minute))),
-	)
-	return meterProvider, nil
-}
-
-func initProvider(ctx context.Context, target string) (*sdktrace.TracerProvider, error) {
-	res, err := resource.New(ctx,
-		resource.WithAttributes(
-			// the service name used to display traces in backends
-			semconv.ServiceName("sr-api"),
-		),
-	)
+func initMetricsProvider(ctx context.Context, target string, res *resource.Resource) (*sdkmeter.MeterProvider, error) {
 	conn, err := grpc.DialContext(ctx, target,
-		// Note the use of insecure transport here. TLS is recommended in production.
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithBlock(),
 	)
 	if err != nil {
-		log.Fatalln("failed to create gRPC connection to collector: %w", err)
+		log.Fatal().Err(err).Msg("Failed to create gRPC connection to collector")
+		return nil, err
 	}
 
-	// Set up a trace exporter
+	metricExporter, err := otlpmetricgrpc.New(ctx, otlpmetricgrpc.WithGRPCConn(conn))
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to create metrics exporter")
+		return nil, err
+	}
+
+	meterProvider := sdkmeter.NewMeterProvider(
+		sdkmeter.WithReader(sdkmeter.NewPeriodicReader(metricExporter)),
+		sdkmeter.WithResource(res),
+	)
+
+	return meterProvider, nil
+}
+
+func initTracesProvider(ctx context.Context, target string, res *resource.Resource) (*sdktrace.TracerProvider, error) {
+	conn, err := grpc.DialContext(ctx, target,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithBlock(),
+	)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to create gRPC connection to collector")
+		return nil, err
+	}
+
 	traceExporter, err := otlptracegrpc.New(ctx, otlptracegrpc.WithGRPCConn(conn))
 	if err != nil {
-		log.Fatalln("failed to create trace exporter: %w", err)
+		log.Fatal().Err(err).Msg("Failed to create trace exporter")
+		return nil, err
 	}
 
-	// Register the trace exporter with a TracerProvider, using a batch
-	// span processor to aggregate spans before export.
 	bsp := sdktrace.NewBatchSpanProcessor(traceExporter)
 	tracerProvider := sdktrace.NewTracerProvider(
 		sdktrace.WithSampler(sdktrace.AlwaysSample()),
@@ -136,6 +160,14 @@ func initProvider(ctx context.Context, target string) (*sdktrace.TracerProvider,
 		sdktrace.WithSpanProcessor(bsp),
 	)
 
-	// Shutdown will flush any remaining spans and shut down the exporter.
 	return tracerProvider, nil
+}
+
+func createResource(ctx context.Context) (*resource.Resource, error) {
+	return resource.New(ctx,
+		resource.WithAttributes(
+			// the service name used to display in backends
+			semconv.ServiceName("sr-api"),
+		),
+	)
 }
