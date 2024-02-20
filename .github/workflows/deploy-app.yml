@@ -24,13 +24,43 @@ jobs:
 
       - name: Wait for service to be available
         run: |
-          until $(curl --output /dev/null --silent --head --fail http://127.0.0.1:8787/status); do
-            printf '.'
-            sleep 10
+          timeout=60 # Timeout in seconds
+          while ! curl --output /dev/null --silent --head --fail http://127.0.0.1:8787/status; do
+            sleep 5
+            timeout=$((timeout-5))
+            if [ "$timeout" -le 0 ]; then
+              echo "Service did not become available in time"
+              exit 1
+            fi
           done
+          echo "Service is available"
+
 
       - name: Verify service status
         run: |
-          RESPONSE=$(curl --silent http://127.0.0.1:8787/status)
-          echo "Service response: $RESPONSE"
-          [[ "$RESPONSE" == *'"Status":"Server is running"'* ]] || exit 1
+          max_attempts=5
+          timeout_between_attempts=5 # seconds
+          attempt=1
+          success=false
+          
+          while [ $attempt -le $max_attempts ]; do
+            RESPONSE=$(curl --silent http://127.0.0.1:8787/status)
+            echo "Attempt $attempt: Service response: $RESPONSE"
+          
+            if [[ "$RESPONSE" == *'"Status":"Server is running"'* ]]; then
+              success=true
+              break
+            fi
+          
+            echo "Service not ready, waiting $timeout_between_attempts seconds..."
+            sleep $timeout_between_attempts
+            attempt=$((attempt+1))
+          done
+          
+          if [ $success = false ]; then
+            echo "Service did not report 'Server is running' status after $max_attempts attempts"
+            exit 1
+          fi
+          
+          echo "Service verified successfully"
+
