@@ -1,111 +1,99 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
-	"log"
-	"mime/multipart"
+	"context"
+	"errors"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+	"net"
 	"net/http"
 	"os"
-	"path/filepath"
+	"os/signal"
+	"sr-api/handlers" // Ensure this import path is correct and accessible.
+	"time"
+
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
-type PayloadSuccess struct {
-	Result string
-	Filename string
-}
-
-type PayloadError struct {
-	Result string
-}
-
-
-
-func rootHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "GET" {
-		fmt.Fprintln(w, "Server is online")
-	} else {
-		// Return a 405 Method Not Allowed response for non-GET requests
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		fmt.Fprintln(w, "Method Not Allowed")
-	}
-}
-
-
-func uploadHandler(w http.ResponseWriter, r *http.Request) {
-	file, handler, err := r.FormFile("file")
-	if err != nil {
-		log.Println("Failed to get uploaded file:", err)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		p := PayloadError{"Failed to get uploaded file"}
-		err := json.NewEncoder(w).Encode(p)
-		if err != nil {
-			return
-		}
-		return
-	}
-	defer func(file multipart.File) {
-		err := file.Close()
-		if err != nil {
-			return
-		}
-	}(file)
-
-	err = checkFileSignature(file)
-	if err != nil {
-		log.Println("File signature check failed:", err)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		p := PayloadError{"Failed to upload file"}
-		err := json.NewEncoder(w).Encode(p)
-		if err != nil {
-			return
-		}
-		return
-	}
-
-	fileExt := filepath.Ext(handler.Filename)
-	fileName := fmt.Sprintf("%s%s", generateRandomString(16), fileExt)
-	err = uploadToMinio(fileName, file, handler.Size)
-	if err != nil {
-		log.Println("Failed to upload file to Minio:", err)
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-
-		p := PayloadError{"Failed to upload file"}
-		err := json.NewEncoder(w).Encode(p)
-		if err != nil {
-			return
-		}
-		return
-	}
-
-	log.Println("File uploaded successfully to Minio:", fileName)
-	// Send success response
-	res, err := sendToProcess(os.Getenv("MINIO_BUCKET"), fileName)
-	if err != nil {
-		log.Println("Field to transcribe file", err)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	err = json.NewEncoder(w).Encode(res)
-	if err != nil {
-		return
-	}
-}
-
 func main() {
-	// Set up HTTP server and routes
-	http.HandleFunc("/", rootHandler)
-	http.HandleFunc("/upload", uploadHandler)
-
-	log.Println("Server started at 0.0.0.0:8080")
-	err := http.ListenAndServe("0.0.0.0:8080", nil)
-	if err != nil {
-		return
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	log.Info().Msg("Starting server...")
+	if err := run(); err != nil {
+		log.Error().Err(err).Msg("Failed to start server")
 	}
 }
 
+func run() (err error) {
+	// Handle SIGINT (CTRL+C) gracefully.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+
+	// Set up OpenTelemetry.
+	otelShutdown, err := setupOTelSDK(ctx)
+	log.Info().Msg("OpenTelemetry SDK setup")
+	if err != nil {
+		log.Error().Err(err).Msg("Setup OTel failed, err: ")
+		return
+	}
+	// Handle shutdown properly so nothing leaks.
+	defer func() {
+		err = errors.Join(err, otelShutdown(context.Background()))
+	}()
+	srv := &http.Server{
+		Addr:         "0.0.0.0:8080",
+		BaseContext:  func(_ net.Listener) context.Context { return ctx },
+		ReadTimeout:  time.Second,
+		WriteTimeout: 10 * time.Second,
+		Handler:      newHTTPHandler(),
+	}
+	srvErr := make(chan error, 1)
+	go func() {
+		srvErr <- srv.ListenAndServe()
+	}()
+	// Wait for interruption.
+	select {
+	case err = <-srvErr:
+		// Error when starting HTTP server.
+		log.Error().Err(err).Msg("HTTP server ListenAndServe")
+		return
+	case <-ctx.Done():
+		// Wait for first CTRL+C.
+		// Stop receiving signal notifications as soon as possible.
+		log.Info().Msg("System interruption")
+		stop()
+	}
+	// When Shutdown is called, ListenAndServe immediately returns ErrServerClosed.
+	err = srv.Shutdown(context.Background())
+	return
+}
+
+// Set up HTTP server and routes
+
+func newHTTPHandler() http.Handler {
+	mux := http.NewServeMux()
+
+	// Enhanced logging: Log before attempting to register handlers.
+	log.Info().Msg("Registering HTTP handlers...")
+
+	// handleFunc is a replacement for mux.HandleFunc
+	// which enriches the handler's HTTP instrumentation with the pattern as the http.route.
+	handleFunc := func(pattern string, handlerFunc func(http.ResponseWriter, *http.Request)) {
+		// Configure the "http.route" for the HTTP instrumentation.
+		handler := otelhttp.WithRouteTag(pattern, http.HandlerFunc(handlerFunc))
+		mux.Handle(pattern, handler)
+		log.Info().Str("pattern", pattern).Msg("Handler registered")
+
+	}
+
+	// Attempt to register handlers and log any potential errors.
+	// Note: Assuming handlers.UploadHandler and handlers.StatusHandler do not return errors.
+	// If they can return errors, you should handle those appropriately here.
+	handleFunc("/upload", handlers.UploadHandler)
+	handleFunc("/status", handlers.StatusHandler)
+
+	log.Info().Msg("All handlers registered successfully.")
+
+	// Add HTTP instrumentation for the whole server.
+	handler := otelhttp.NewHandler(mux, "/")
+	return handler
+}

@@ -1,0 +1,33 @@
+name: Deploy Application
+
+on:
+  workflow_run:
+    workflows: ["Docker Image CI"]
+    branches: [main]
+    types:
+      - completed
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    if: github.ref == 'refs/heads/main' && github.event.workflow_run.conclusion == 'success'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Compose
+        run: docker compose -f compose.yml up -d
+
+      - name: Wait for service to be available
+        run: |
+          until $(curl --output /dev/null --silent --head --fail http://127.0.0.1/status); do
+            printf '.'
+            sleep 5
+          done
+
+      - name: Verify service status
+        run: |
+          RESPONSE=$(curl --silent http://127.0.0.1/status)
+          echo "Service response: $RESPONSE"
+          [[ "$RESPONSE" == *'"Status":"Server is running"'* ]] || exit 1

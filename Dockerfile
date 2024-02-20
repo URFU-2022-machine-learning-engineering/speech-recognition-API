@@ -3,17 +3,24 @@ FROM golang:1.21 AS build
 
 WORKDIR /app
 
+# Copy go mod and sum files first to leverage Docker cache
 COPY go.mod go.sum ./
 RUN go mod download
-COPY *.go ./
 
+# Copy the rest of the application source code
+COPY . .
+
+# Compile the application to a static binary
 RUN CGO_ENABLED=0 GOOS=linux go build -o /sr-api
 
-# Final stage
-FROM scratch
+# Final stage, using a distroless image for minimal footprint
+FROM gcr.io/distroless/static
 
-COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+# Copy the static binary from the build stage
 COPY --from=build /sr-api /sr-api
+
+# Specify the user to run the application (non-root for security)
+USER nonroot:nonroot
 
 EXPOSE 8080
 
