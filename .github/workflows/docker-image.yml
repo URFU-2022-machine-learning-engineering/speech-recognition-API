@@ -26,10 +26,14 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: dzailz/sr-api
-          # Exclude 'latest' tag for pull requests
           flavor: |
-            latest=false
-            suffix=${{ github.event_name == 'pull_request' && 'pr-' || '' }}
+            latest=true
+          tags: |
+            type=semver,pattern={{version}}
+            type=ref,event=branch
+            type=ref,event=pr
+          custom: |
+            [[ ${{ github.ref }} == 'refs/heads/main' ]] && echo "main"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
