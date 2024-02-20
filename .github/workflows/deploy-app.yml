@@ -16,6 +16,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Stop the current installation
+        run: docker compose -f compose.yml down -v
+
       - name: Set up Docker Compose
         run: docker compose -f compose.yml up -d
 
