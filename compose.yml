@@ -1,44 +1,8 @@
 services:
 
   sr-api:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: dzailz/sr-api:latest
     ports:
       - "8080:8080"
     env_file:
-      - .env
-#    depends_on:
-#      jaeger:
-#        condition: service_healthy
-#    networks:
-#      - tracing_net
-
-#  jaeger:
-#    image: jaegertracing/all-in-one:latest
-#    ports:
-#      - "16686:16686" # Jaeger UI
-#      - "4318:4318" # HTTP port for Jaeger
-#      - "4317:4317" # gRPC port for Jaeger
-#    environment:
-#      COLLECTOR_OTLP_ENABLED: true
-#    networks:
-#      - tracing_net
-#    healthcheck:
-#      test: ["CMD", "curl", "-f", "http://localhost:16686"]
-
-
-
-#  grafana-agent:
-#    image: grafana/agent:latest
-#    environment:
-#      - AGENT_MODE=flow
-#    volumes:
-#      - ./grafana-agent-flow.river:/etc/agent/config.river
-#    ports:
-#      - "12345:12345"
-#      - "4317:4317" # gRPC port
-#      - "4318:4318" # protobuf port
-#    command:
-#      - run
-#      - /etc/agent/config.river
+      - /var/sr-api/.env.local

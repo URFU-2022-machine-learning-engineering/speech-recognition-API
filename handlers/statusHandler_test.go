@@ -41,7 +41,7 @@ func TestStatusHandlerPositive(t *testing.T) {
 }
 
 func TestStatusHandlerNegative(t *testing.T) {
-	// Create a new request with the POST method to the root path ("/")
+	// Create a new request with the POST method to the root path ("/status")
 	req, err := http.NewRequest("POST", "/status", nil)
 	if err != nil {
 		t.Fatal(err)
