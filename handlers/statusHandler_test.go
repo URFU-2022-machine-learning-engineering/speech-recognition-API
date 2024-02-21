@@ -61,9 +61,9 @@ func TestStatusHandlerNegative(t *testing.T) {
 	}
 
 	// Check the response body returned by the handler
-	expected := "Method Not Allowed\n"
+	expected := "Method Not Allowed"
 	if rr.Body.String() != expected {
-		t.Errorf("handler returned unexpected body: got %v want %v",
+		t.Errorf("handler returned unexpected body: got '%v' want '%v'",
 			rr.Body.String(), expected)
 	}
 }

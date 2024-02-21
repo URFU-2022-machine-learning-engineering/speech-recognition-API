@@ -3,12 +3,14 @@ package utils
 import (
 	"context"
 	"encoding/json"
+	"net/http"
+	"sr-api/handlers/handlers_structure"
+
+	"github.com/rs/zerolog/log"
+
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
-	"log"
-	"net/http"
-	"sr-api/handlers/handlers_structure"
 )
 
 // RespondWithError sends an error response along with tracing the operation.
@@ -18,12 +20,15 @@ func RespondWithError(ctx context.Context, w http.ResponseWriter, code int, mess
 	span.SetAttributes(attribute.Int("http.status_code", code), attribute.String("error.message", message))
 	defer span.End()
 
-	log.Printf("Error %d: %s", code, message)
+	// Use zerolog for logging the error
+	log.Error().Int("code", code).Str("message", message).Msg("Error response")
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	p := handlers_structure.UploadError{Result: message}
 	if err := json.NewEncoder(w).Encode(p); err != nil {
-		log.Printf("Failed to encode error response JSON: %v", err)
+		// Log the failure to encode the error response
+		log.Error().Err(err).Msg("Failed to encode error response JSON")
 	}
 }
 
@@ -36,7 +41,8 @@ func RespondWithSuccess(ctx context.Context, w http.ResponseWriter, code int, pa
 	w.WriteHeader(code)
 
 	if err := json.NewEncoder(w).Encode(payload); err != nil {
-		log.Printf("Failed to encode success response JSON: %v", err)
+		// Log the failure to encode the success response
+		log.Error().Err(err).Msg("Failed to encode success response JSON")
 		span.RecordError(err)
 	}
 }
@@ -49,8 +55,8 @@ func RespondWithInfo(ctx context.Context, w http.ResponseWriter, code int) {
 	w.WriteHeader(code)
 	p := handlers_structure.StatusSuccess{Status: "Server is running"}
 	if err := json.NewEncoder(w).Encode(p); err != nil {
-		log.Printf("Failed to encode success response JSON: %v", err)
+		// Log the failure to encode the info response
+		log.Error().Err(err).Msg("Failed to encode info response JSON")
 		span.RecordError(err)
 	}
-
 }

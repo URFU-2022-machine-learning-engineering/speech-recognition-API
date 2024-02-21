@@ -2,20 +2,20 @@ package handlers
 
 import (
 	"fmt"
-	"sr-api/utils"
-
-	"go.opentelemetry.io/otel/attribute"
-
-	"go.opentelemetry.io/otel/trace"
-	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
+	"sr-api/utils"
+
+	"github.com/rs/zerolog/log" // Use zerolog for logging
+
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func UploadHandler(w http.ResponseWriter, r *http.Request) {
-	// Start a new span for the upload operation
+	// Initialize zerolog with context for potential structured logging
 	ctx, span := utils.StartSpanFromRequest(r, "UploadHandler")
 	defer span.End()
 
@@ -30,7 +30,7 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 		defer func(file multipart.File) {
 			err := file.Close()
 			if err != nil {
-				log.Println("Failed to close the file:", err)
+				log.Error().Err(err).Msg("Failed to close the file")
 			}
 		}(file)
 
@@ -54,16 +54,24 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 		result, err := utils.ProcessFileWithContext(ctx, os.Getenv("STORAGE_BUCKET"), fileName)
 		if err != nil {
 			utils.RespondWithError(ctx, w, http.StatusInternalServerError, "Failed to process file")
-			log.Println("Failed to process the file", err)
+			log.Error().Err(err).Msg("Failed to process the file")
 			return
 		}
 
 		utils.RespondWithSuccess(ctx, w, http.StatusOK, result)
 	} else {
-		// Return a 405 Method Not Allowed response for non-GET requests
+		// Log the non-POST request method using zerolog
+		log.Warn().
+			Str("method", r.Method).
+			Str("path", r.URL.Path).
+			Str("Remote addr", r.RemoteAddr).
+			Msg("Method Not Allowed")
+
+		// Return a 405 Method Not Allowed response for non-POST requests
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		_, err := fmt.Fprintln(w, "Method Not Allowed")
 		if err != nil {
+			log.Error().Err(err).Msg("Failed to write Method Not Allowed response")
 			return
 		}
 	}
