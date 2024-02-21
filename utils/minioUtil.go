@@ -2,18 +2,19 @@ package utils
 
 import (
 	"context"
-	"log"
 	"mime/multipart"
 	"os"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
+	"github.com/rs/zerolog/log"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 )
 
-// UploadToMinioWithContext uploads a file to Minio storage, incorporating context for tracing.
+// UploadToMinioWithContext uploads a file to Minio storage, incorporating context for tracing and zerolog for logging.
 func UploadToMinioWithContext(ctx context.Context, filename string, file multipart.File, size int64) error {
+
 	_, span := otel.Tracer("file-utils").Start(ctx, "UploadToMinio")
 	defer span.End()
 
@@ -30,7 +31,7 @@ func UploadToMinioWithContext(ctx context.Context, filename string, file multipa
 	if err != nil {
 		span.RecordError(err)
 		span.SetAttributes(attribute.String("error.detail", "Failed to create Minio client"))
-		log.Printf("Failed to create Minio client: %v", err)
+		log.Error().Err(err).Msg("Failed to create Minio client")
 		return err
 	}
 
@@ -42,7 +43,7 @@ func UploadToMinioWithContext(ctx context.Context, filename string, file multipa
 	if err != nil {
 		span.RecordError(err)
 		span.SetAttributes(attribute.String("error.detail", "Failed to upload file"), attribute.String("minio.bucket", bucketName))
-		log.Printf("Failed to upload file to bucket %s: %v", bucketName, err)
+		log.Error().Err(err).Str("minio.bucket", bucketName).Msg("Failed to upload file")
 		return err
 	}
 
@@ -52,6 +53,11 @@ func UploadToMinioWithContext(ctx context.Context, filename string, file multipa
 		attribute.Int64("minio.file.size", info.Size),
 	)
 
-	log.Printf("Successfully uploaded %s of size %d to bucket %s", filename, size, bucketName)
+	log.Info().
+		Str("file.name", filename).
+		Int64("minio.file.size", info.Size).
+		Str("minio.bucket", bucketName).
+		Msg("Successfully uploaded file")
+
 	return nil
 }

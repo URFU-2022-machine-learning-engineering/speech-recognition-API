@@ -2,8 +2,9 @@ package utils
 
 import (
 	"context"
-	"log"
 	"os"
+
+	"github.com/rs/zerolog/log"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -19,15 +20,13 @@ func GetEnvOrShutdownWithTelemetry(ctx context.Context, key string) string {
 
 	value := os.Getenv(key)
 	if value == "" {
-		errorMessage := "Critical configuration error: environment variable '' must not be empty."
-		log.Println(errorMessage)
+		errorMessage := "Critical configuration error: environment variable '" + key + "' must not be empty."
+		// Use zerolog for critical error logging
+		log.Error().Str("environment.variable", key).Msg(errorMessage)
 
 		// Record the error in the span
 		span.SetStatus(codes.Error, errorMessage)
 		span.SetAttributes(attribute.String("environment.variable", key), attribute.String("error.message", errorMessage))
-
-		// Assuming you have a mechanism to flush telemetry data before exiting
-		FlushTelemetryData()
 
 		os.Exit(1) // Use os.Exit to terminate the application
 	}
@@ -35,10 +34,4 @@ func GetEnvOrShutdownWithTelemetry(ctx context.Context, key string) string {
 	// Correctly use attribute.String to add string attributes to the span
 	span.SetAttributes(attribute.String("environment.variable", key), attribute.String("value", value))
 	return value
-}
-
-// FlushTelemetryData would flush any buffered telemetry data.
-// Implement this based on the telemetry system you're using.
-func FlushTelemetryData() {
-	// Example: Flush data if using a batch span processor or similar
 }

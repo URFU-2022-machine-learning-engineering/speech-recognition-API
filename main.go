@@ -17,6 +17,8 @@ import (
 
 func main() {
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	// Ensure zerolog logs with proper time formatting
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	log.Info().Msg("Starting server...")
 	if err := run(); err != nil {
 		log.Error().Err(err).Msg("Failed to start server")
@@ -32,7 +34,7 @@ func run() (err error) {
 	otelShutdown, err := setupOTelSDK(ctx)
 	log.Info().Msg("OpenTelemetry SDK setup")
 	if err != nil {
-		log.Error().Err(err).Msg("Setup OTel failed, err: ")
+		log.Error().Err(err).Msg("Setup OTel failed, err")
 		return
 	}
 	// Handle shutdown properly so nothing leaks.
