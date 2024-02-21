@@ -2,7 +2,9 @@ name: Deploy Application
 
 on:
   workflow_run:
-    workflows: ["Docker Image CI"]
+    workflows:
+      - "Go Build and Test"
+      - "Docker Image CI"
     branches: [main]
     types:
       - completed
