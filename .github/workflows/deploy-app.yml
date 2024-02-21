@@ -1,9 +1,8 @@
-name: Deploy Application
+name: Deploy SR-API
 
 on:
   workflow_run:
     workflows:
-      - "Go Build and Test"
       - "Docker Image CI"
     branches: [main]
     types:
