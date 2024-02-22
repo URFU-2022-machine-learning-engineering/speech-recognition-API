@@ -21,3 +21,5 @@
 .env.local
 *.river
 compose.local.yml
+loki-data
+loki-wal

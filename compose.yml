@@ -1,5 +1,4 @@
 services:
-
   sr-api:
     container_name: sr-api
     image: dzailz/sr-api:main
@@ -7,3 +6,32 @@ services:
       - "8787:8080"
     env_file:
       - /var/sr-api/.env.local
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "30"
+
+  promtail:
+    image: grafana/promtail:latest
+    volumes:
+      - /var/log/docker/containers:/var/log/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/sr-api/promtail-config.yml:/etc/promtail/config.yml:ro
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      loki:
+        condition: service_started
+
+
+  loki:
+    image: grafana/loki:latest
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki-data:/loki
+      - ./loki-wal:/loki/wal
+      - /var/sr-api/loki-config.yml:/mnt/config/loki-config.yml
+    command: -config.file=/mnt/config/loki-config.yml
+    user: "0"
+
