@@ -4,38 +4,49 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/codes"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"path"
 	"sr-api/handlers/handlers_structure"
+
+	"github.com/rs/zerolog/log"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 )
 
-// processResponse is a function that takes a byte slice as input and attempts to unmarshal it as JSON.
-// If the unmarshalling is successful, it logs the JSON response and returns it.
-// If the unmarshalling fails, it treats the input as an HTML response, logs it, and returns it.
-// The function returns two values: the response (either JSON or HTML) and an error (if any occurred during the process).
-func processResponse(body []byte) (interface{}, error) {
-	// Declare a variable of type interface{} to hold the response
-	var response interface{}
+// processResponse processes the response body. If it's JSON, it logs and returns the JSON.
+// If it's not JSON (assumed HTML), it logs and returns the HTML response.
+func processResponse(ctx context.Context, body []byte) (interface{}, error) {
+	tracer := otel.Tracer("utils")
+	// Start a new span for the processResponse operation
+	ctx, span := tracer.Start(ctx, "processResponse")
+	defer span.End()
 
-	// Attempt to unmarshal the response as JSON
+	var response interface{}
 	err := json.Unmarshal(body, &response)
 	if err == nil {
-		// If the unmarshalling is successful, log the JSON response and return it
-		log.Println("Received JSON response:", response)
+		// If the unmarshalling is successful, log the JSON response
+		log.Info().Msgf("Received JSON response: %v", response)
+		// Set span attributes relevant to the operation
+		span.SetAttributes(attribute.String("response.type", "json"))
 		return response, nil
 	}
 
 	// If unmarshalling as JSON fails, treat it as an HTML response
 	htmlResponse := string(body)
-	// Log the HTML response
-	log.Println("Received HTML response:", htmlResponse)
-	// Return the HTML response
+	// Log the HTML response as an error
+	log.Error().Err(err).Msgf("Failed to unmarshal JSON, treating as HTML: %s", htmlResponse)
+	// Record the error in the span
+	span.RecordError(err)
+	span.SetStatus(codes.Error, "Failed to unmarshal JSON")
+	span.SetAttributes(
+		attribute.String("response.type", "html"),
+		attribute.String("error.message", "Failed to unmarshal JSON, treating as HTML"),
+	)
+
 	return htmlResponse, nil
 }
 
@@ -43,36 +54,33 @@ func ProcessFileWithContext(ctx context.Context, bucketName, fileName string) (i
 	tracer := otel.Tracer("utils")
 	ctx, span := tracer.Start(ctx, "ProcessFileWithContext")
 	defer span.End()
-	span.AddEvent("Get the environment variables")
+
 	whisperEndpoint := GetEnvOrShutdownWithTelemetry(ctx, "WHISPER_ENDPOINT")
 	whisperTranscribe := GetEnvOrShutdownWithTelemetry(ctx, "WHISPER_TRANSCRIBE")
-	span.AddEvent("Finished getting the environment variables")
-	// Parse the base URL
-	span.AddEvent("Parse the base URL")
+
 	u, err := url.Parse(whisperEndpoint)
 	if err != nil {
 		span.RecordError(err)
-		log.Fatalf("Failed to parse WHISPER_ENDPOINT: %v", err)
+		log.Fatal().Err(err).Msg("Failed to parse WHISPER_ENDPOINT")
 	}
-	span.AddEvent("Finished parsing the base URL")
-	// Properly append the path
+
 	u.Path = path.Join(u.Path, whisperTranscribe)
 	whisperTranscribeURL := u.String()
-	span.AddEvent("Prepare the request")
+
 	data := handlers_structure.SendData{BucketName: bucketName, FileName: fileName}
 	jsonData, err := json.Marshal(data)
 	if err != nil {
 		span.RecordError(err)
 		return nil, err
 	}
-	span.AddEvent("Prepare the request")
+
 	req, err := http.NewRequestWithContext(ctx, "POST", whisperTranscribeURL, bytes.NewBuffer(jsonData))
 	if err != nil {
 		span.RecordError(err)
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	span.AddEvent("Send the request", trace.WithAttributes(attribute.String("request.type", "POST")))
+
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -82,23 +90,22 @@ func ProcessFileWithContext(ctx context.Context, bucketName, fileName string) (i
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
 		if err != nil {
-			span.RecordError(err)
+			log.Error().Err(err).Msg("Failed to close response body")
 		}
 	}(resp.Body)
-	span.AddEvent("Read the file")
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		span.RecordError(err)
 		return nil, err
 	}
 
-	response, err := processResponse(body)
+	response, err := processResponse(ctx, body)
 	if err != nil {
 		span.RecordError(err)
 		span.SetAttributes(attribute.String("response.error", "Failed to process response"))
 		return nil, err
 	}
 
-	span.SetAttributes(attribute.String("response.type", "Success"))
 	return response, nil
 }
