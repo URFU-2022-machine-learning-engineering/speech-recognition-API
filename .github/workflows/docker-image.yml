@@ -6,6 +6,8 @@ on:
       - Go Build and Test
     types:
       - completed
+    branches:
+      - main
 
 jobs:
   push_to_registry:
