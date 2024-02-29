@@ -14,6 +14,10 @@ services:
     depends_on:
       otel-collector:
         condition: service_started
+      promtail:
+        condition: service_started
+    networks:
+      telemetry:
 
   # OpenTelemetry Collector Service
   otel-collector:
@@ -27,6 +31,8 @@ services:
     depends_on:
       jaeger:
         condition: service_started
+    networks:
+      telemetry:
 
   promtail:
     image: grafana/promtail:latest
@@ -38,6 +44,8 @@ services:
     depends_on:
       loki:
         condition: service_started
+    networks:
+      telemetry:
 
   loki:
     image: grafana/loki:latest
@@ -46,8 +54,10 @@ services:
     volumes:
       - loki-data:/loki
       - loki-wal:/loki/wal
-      - /var/sr-api/loki-config.yml:/mnt/config/loki-config.yml
+      - /var/telemetry/loki-config.yml:/mnt/config/loki-config.yml
     command: -config.file=/mnt/config/loki-config.yml
+    networks:
+      telemetry:
 
   jaeger:
     image: jaegertracing/all-in-one:latest
@@ -65,6 +75,8 @@ services:
       BADGER_DIRECTORY_KEY: /badger/key
       BADGER_EPHEMERAL: "false"
     user: "0"
+    networks:
+      telemetry:
 
 
   grafana:
@@ -72,15 +84,34 @@ services:
     ports:
       - "3000:3000"
     env_file:
-      - /var/sr-api/.env.local
+      - /var/telemetry/.env.local
     volumes:
       - grafana-storage:/var/lib/grafana
-      - /var/sr-api/grafana-config.ini:/etc/grafana/grafana.ini
+      - /var/telemetry/grafana-config.ini:/etc/grafana/grafana.ini
+    networks:
+      grafana_db:
 
+  postgres-grafana:
+    image: postgres:latest
+    container_name: postgres-grafana
+    restart: unless-stopped
+    env_file:
+      - /var/telemetry/.env.local
+    volumes:
+      - grafana-db:/var/lib/postgresql/data
+    expose:
+      - "5432"
+    networks:
+      grafana_db:
 
 
 volumes:
+  grafana-db: {}
   grafana-storage: {}
   loki-data: {}
   loki-wal: {}
   influxdb-data: {}
+
+networks:
+  grafana_db:
+  telemetry:
