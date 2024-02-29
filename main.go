@@ -19,6 +19,7 @@ func main() {
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	// Ensure zerolog logs with proper time formatting
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	log.Logger = log.Output(os.Stderr)
 	log.Info().Msg("Starting server...")
 	if err := run(); err != nil {
 		log.Error().Err(err).Msg("Failed to start server")

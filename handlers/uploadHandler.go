@@ -50,8 +50,7 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 
 		span.AddEvent("File uploaded successfully", trace.WithAttributes(attribute.String("filename", fileName)))
 
-		// Process the file if necessary, again passing along the context
-		result, err := utils.ProcessFileWithContext(ctx, os.Getenv("STORAGE_BUCKET"), fileName)
+		result, err := utils.ProcessFileWithContext(ctx, os.Getenv("MINIO_BUCKET"), fileName)
 		if err != nil {
 			utils.RespondWithError(ctx, w, http.StatusInternalServerError, "Failed to process file")
 			log.Error().Err(err).Msg("Failed to process the file")
