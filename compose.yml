@@ -23,7 +23,7 @@ services:
   otel-collector:
     image: otel/opentelemetry-collector
     volumes:
-      - /var/sr-api/otel-collector-config.yaml:/otel-collector-config.yaml
+      - /var/telemetry/otel-collector-config.yaml:/otel-collector-config.yaml
     ports:
       - "4317:4317" # OTLP gRPC receiver port, ensuring no conflict with Jaeger
       - "4318:4318" # OTLP HTTP receiver port, ensuring no conflict with Jaeger
