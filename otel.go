@@ -84,35 +84,6 @@ func newPropagator() propagation.TextMapPropagator {
 	)
 }
 
-//func newTraceProvider() (*trace.TracerProvider, error) {
-//	traceExporter, err := stdouttrace.New(
-//		stdouttrace.WithPrettyPrint())
-//	if err != nil {
-//		log.Println("Failed to create trace exporter:", err)
-//		return nil, err
-//	}
-//
-//	traceProvider := trace.NewTracerProvider(
-//		trace.WithBatcher(traceExporter,
-//			trace.WithBatchTimeout(5*time.Second)),
-//	)
-//	return traceProvider, nil
-//}
-
-//func newMeterProvider() (*sdkmeter.MeterProvider, error) {
-//	metricExporter, err := stdoutmetric.New()
-//	if err != nil {
-//		log.Error().Err(err).Msg("Failed to create metric exporter:")
-//		return nil, err
-//	}
-//
-//	meterProvider := sdkmeter.NewMeterProvider(
-//		sdkmeter.WithReader(sdkmeter.NewPeriodicReader(metricExporter,
-//			sdkmeter.WithInterval(time.Minute))),
-//	)
-//	return meterProvider, nil
-//}
-
 func initMetricsProvider(ctx context.Context, target string, res *resource.Resource) (*sdkmeter.MeterProvider, error) {
 	conn, err := grpc.DialContext(ctx, target,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),

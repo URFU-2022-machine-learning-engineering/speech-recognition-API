@@ -18,7 +18,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Stop the current installation
-        run: docker compose -f compose.yml down -v --rmi all --remove-orphans
+        run: docker compose -f compose.yml down --rmi all --remove-orphans
 
       - name: Set up Docker Compose
         run: docker compose -f compose.yml up -d --remove-orphans

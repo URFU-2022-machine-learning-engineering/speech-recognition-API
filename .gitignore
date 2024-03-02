@@ -21,3 +21,8 @@
 .env.local
 *.river
 compose.local.yml
+
+loki-data
+loki-wal
+jaeger-data
+grafana-data
