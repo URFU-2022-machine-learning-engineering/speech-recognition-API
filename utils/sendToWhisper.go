@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"go.opentelemetry.io/otel/codes"
 	"io"
 	"net/http"
@@ -17,73 +18,73 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 )
 
-// processResponse processes the response body. If it's JSON, it logs and returns the JSON.
-// If it's not JSON (assumed HTML), it logs and returns the HTML response.
-func processResponse(ctx context.Context, body []byte) (interface{}, error) {
+// processResponse processes the response body. It attempts to unmarshal the body into JSON.
+// If the unmarshalling is unsuccessful, it logs the response as a string for debugging.
+func processResponse(ctx context.Context, body []byte) ([]byte, error) {
 	tracer := otel.Tracer("utils")
-	// Start a new span for the processResponse operation
-	ctx, span := tracer.Start(ctx, "processResponse")
+	_, span := tracer.Start(ctx, "processResponse")
 	defer span.End()
 
-	var response interface{}
+	var response json.RawMessage // Use RawMessage for delayed unmarshalling
 	err := json.Unmarshal(body, &response)
-	if err == nil {
-		// If the unmarshalling is successful, log the JSON response
-		log.Info().Msgf("Received JSON response: %v", response)
-		// Set span attributes relevant to the operation
-		span.SetAttributes(attribute.String("response.type", "json"))
-		return response, nil
+	if err != nil {
+		// If the body cannot be unmarshalled into JSON, log and return an error
+		log.Error().Err(err).Str("response", string(body)).Msg("Failed to unmarshal JSON response")
+		span.SetAttributes(attribute.String("response.type", "invalid-json"))
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to unmarshal JSON response")
+		return nil, fmt.Errorf("invalid JSON response: %w", err)
 	}
 
-	// If unmarshalling as JSON fails, treat it as an HTML response
-	htmlResponse := string(body)
-	// Log the HTML response as an error
-	log.Error().Err(err).Msgf("Failed to unmarshal JSON, treating as HTML: %s", htmlResponse)
-	// Record the error in the span
-	span.RecordError(err)
-	span.SetStatus(codes.Error, "Failed to unmarshal JSON")
-	span.SetAttributes(
-		attribute.String("response.type", "html"),
-		attribute.String("error.message", "Failed to unmarshal JSON, treating as HTML"),
-	)
-
-	return htmlResponse, nil
+	log.Info().Msg("Received JSON response")
+	span.SetAttributes(attribute.String("response.type", "json"))
+	span.SetStatus(codes.Ok, "Successfully processed response")
+	return body, nil // Return the original body for further processing or forwarding
 }
 
-func ProcessFileWithContext(ctx context.Context, bucketName, fileName string) (interface{}, error) {
+func ProcessFileWithContext(ctx context.Context, bucketName, fileName string) ([]byte, error) {
 	tracer := otel.Tracer("utils")
 	ctx, span := tracer.Start(ctx, "ProcessFileWithContext")
 	defer span.End()
+	log.Info().Msgf("Processing file: %s", fileName)
 
 	whisperEndpoint := GetEnvOrShutdownWithTelemetry(ctx, "WHISPER_ENDPOINT")
 	whisperTranscribe := GetEnvOrShutdownWithTelemetry(ctx, "WHISPER_TRANSCRIBE")
 
 	u, err := url.Parse(whisperEndpoint)
 	if err != nil {
+		log.Error().Err(err).Msg("Failed to parse whisper endpoint URL")
 		span.RecordError(err)
-		log.Fatal().Err(err).Msg("Failed to parse WHISPER_ENDPOINT")
+		return nil, err
 	}
 
 	u.Path = path.Join(u.Path, whisperTranscribe)
 	whisperTranscribeURL := u.String()
-
+	log.Debug().Msgf("Whisper transcribe URL: %s", whisperTranscribeURL)
 	data := handlers_structure.SendData{BucketName: bucketName, FileName: fileName}
+	log.Debug().Msgf("Data: %v", data)
 	jsonData, err := json.Marshal(data)
+	log.Debug().Msgf("JSON data: %s", jsonData)
 	if err != nil {
+		log.Error().Err(err).Msg("Failed to marshal JSON data")
 		span.RecordError(err)
 		return nil, err
 	}
 
 	req, err := http.NewRequestWithContext(ctx, "POST", whisperTranscribeURL, bytes.NewBuffer(jsonData))
 	if err != nil {
+		log.Error().Err(err).Msg("Failed to create new request")
 		span.RecordError(err)
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Connection", "keep-alive")
+	req.Header.Set("Authorization", "Bearer "+GetEnvOrShutdownWithTelemetry(ctx, "WHISPER_API_KEY"))
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
+		log.Error().Err(err).Msg("Failed to send request")
 		span.RecordError(err)
 		return nil, err
 	}
@@ -96,16 +97,19 @@ func ProcessFileWithContext(ctx context.Context, bucketName, fileName string) (i
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
+		log.Error().Err(err).Msg("Failed to read response body")
 		span.RecordError(err)
 		return nil, err
 	}
 
 	response, err := processResponse(ctx, body)
 	if err != nil {
+		log.Error().Err(err).Msg("Failed to process response")
 		span.RecordError(err)
-		span.SetAttributes(attribute.String("response.error", "Failed to process response"))
+		span.SetStatus(codes.Error, "Failed to process response")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "File processed successfully")
 	return response, nil
 }

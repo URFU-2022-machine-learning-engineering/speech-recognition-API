@@ -17,6 +17,7 @@ func TestProcessFileWithContext(t *testing.T) {
 	ctx := context.Background()
 	originalWhisperEndpoint := os.Getenv("WHISPER_ENDPOINT")
 	originalTranscribeUri := os.Getenv("WHISPER_TRANSCRIBE")
+	originalWhisperApiKey := os.Getenv("WHISPER_API_KEY")
 	defer func() {
 		err := os.Setenv("WHISPER_ENDPOINT", originalWhisperEndpoint)
 		if err != nil {
@@ -25,6 +26,10 @@ func TestProcessFileWithContext(t *testing.T) {
 		err = os.Setenv("WHISPER_TRANSCRIBE", originalTranscribeUri)
 		if err != nil {
 			t.Errorf("Unable to set WHISPER_TRANSCRIBE ENV '%v", err)
+		}
+		err = os.Setenv("WHISPER_API_KEY", originalWhisperApiKey)
+		if err != nil {
+			t.Errorf("Unable to set WHISPER_API_KEY ENV '%v", err)
 		}
 	}()
 
@@ -72,18 +77,28 @@ func TestProcessFileWithContext(t *testing.T) {
 		t.Errorf("Unable to set WHISPER_TRANSCRIBE ENV '%v", err)
 		return
 	}
+	err = os.Setenv("WHISPER_API_KEY", "test")
+	if err != nil {
+		t.Errorf("Unable to set WHISPER_API_KEY ENV '%v", err)
+		return
+	}
 
 	// Call the handler function
 	response, err := ProcessFileWithContext(ctx, "my-bucket", "example.mp3")
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-
+	var r interface{}
+	err = json.Unmarshal(response, &r)
+	if err != nil {
+		t.Error(err)
+	}
+	print(r)
 	// Check the response data
 	expectedResponse := map[string]interface{}{
 		"status": "success",
 	}
-	if !reflect.DeepEqual(response, expectedResponse) {
+	if !reflect.DeepEqual(r, expectedResponse) {
 		t.Errorf("Expected response '%v', got '%v'", expectedResponse, response)
 	}
 }

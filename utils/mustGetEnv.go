@@ -21,7 +21,6 @@ func GetEnvOrShutdownWithTelemetry(ctx context.Context, key string) string {
 	value := os.Getenv(key)
 	if value == "" {
 		errorMessage := "Critical configuration error: environment variable '" + key + "' must not be empty."
-		// Use zerolog for critical error logging
 		log.Error().Str("environment.variable", key).Msg(errorMessage)
 
 		// Record the error in the span
@@ -32,6 +31,6 @@ func GetEnvOrShutdownWithTelemetry(ctx context.Context, key string) string {
 	}
 
 	// Correctly use attribute.String to add string attributes to the span
-	span.SetAttributes(attribute.String("environment.variable", key), attribute.String("value", value))
+	span.SetStatus(codes.Ok, "Environment variable found")
 	return value
 }
