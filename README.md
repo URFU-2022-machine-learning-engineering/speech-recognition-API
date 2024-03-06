@@ -1,3 +1,9 @@
+[![Deploy SR-API](https://github.com/URFU-2022-machine-learning-engineering/speech-recognition-API/actions/workflows/deploy-app.yml/badge.svg?branch=main)](https://github.com/URFU-2022-machine-learning-engineering/speech-recognition-API/actions/workflows/deploy-app.yml)
+[![Docker Image CI](https://github.com/URFU-2022-machine-learning-engineering/speech-recognition-API/actions/workflows/docker-image.yml/badge.svg)](https://github.com/URFU-2022-machine-learning-engineering/speech-recognition-API/actions/workflows/docker-image.yml)
+[![Go Build and Test](https://github.com/URFU-2022-machine-learning-engineering/speech-recognition-API/actions/workflows/go_build_and_test.yml/badge.svg)](https://github.com/URFU-2022-machine-learning-engineering/speech-recognition-API/actions/workflows/go_build_and_test.yml)
+
+
+
 # File Upload Server
 
 This is a simple Go application that provides an HTTP server to handle file uploads. The server can accept file uploads and store them to an object storage service called Minio. The server provides a root endpoint to check if the server is online and a file upload endpoint.
@@ -25,13 +31,13 @@ git clone https://github.com/URFU-2022-machine-learning-engineering/speech-recog
 - MINIO_SECRET_KEY: the Minio secret key
 - MINIO_BUCKET: the Minio bucket to upload files to
 
-3. Build the application:
+2. Build the application:
 
 ```bash
 go build
 ```
 
-4. Run the application:
+3. Run the application:
 
 ```bash
 ./file-upload-server
