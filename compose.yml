@@ -146,4 +146,5 @@ volumes:
 
 networks:
   grafana_db:
+    driver: bridge
   telemetry:
