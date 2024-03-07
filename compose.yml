@@ -1,6 +1,7 @@
 services:
   sr-api:
     container_name: sr-api
+    restart: unless-stopped
     image: dzailz/sr-api:main
     ports:
       - "8787:8080"
@@ -19,9 +20,9 @@ services:
     networks:
       telemetry:
 
-  # OpenTelemetry Collector Service
   otel-collector:
     container_name: otel-collector
+    restart: unless-stopped
     image: otel/opentelemetry-collector:latest
     volumes:
       - /var/telemetry/otel-collector-config.yaml:/otel-collector-config.yaml
@@ -38,6 +39,7 @@ services:
 
   promtail:
     container_name: promtail
+    restart: unless-stopped
     image: grafana/promtail:latest
     volumes:
       - /var/log/docker/containers:/var/log/containers:ro
@@ -52,6 +54,7 @@ services:
 
   loki:
     container_name: loki
+    restart: unless-stopped
     image: grafana/loki:latest
     ports:
       - "3100:3100"
@@ -65,6 +68,7 @@ services:
 
   jaeger:
     container_name: jaeger
+    restart: unless-stopped
     image: jaegertracing/all-in-one:latest
     ports:
       - "16686:16686" # Jaeger UI
@@ -102,6 +106,7 @@ services:
   grafana:
     container_name: grafana
     image: grafana/grafana:latest
+    restart: unless-stopped
     ports:
       - "3000:3000"
     env_file:
