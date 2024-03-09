@@ -2,7 +2,10 @@ package utils
 
 import (
 	"context"
+	"github.com/gin-gonic/gin"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"time"
 
 	"github.com/minio/minio-go/v7"
@@ -197,9 +200,29 @@ func TestUploadToMinioWithTestContainer(t *testing.T) {
 		t.Fatalf("Failed to create bucket: %v", err)
 	}
 
-	file := &mockAudioFile{content: "test content"}
-	err = UploadToMinioWithContext(ctx, "testfile", file, int64(len(file.content)))
-	if err != nil {
-		t.Errorf("Expected no error, got: %v", err)
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+
+	// Define a test route that uses UploadToMinioWithContext
+	r.POST("/upload", func(c *gin.Context) {
+		// Simulate receiving a file part as `file`, similar to how you'd receive it in a real request
+		file := &mockAudioFile{content: "test content"}
+		// Use the c.Request.Context() for operations that need a context.Context
+		if err := UploadToMinioWithContext(c, "testfile.mp3", file, int64(len(file.content))); err != nil {
+			// Handle error...
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload file"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "File uploaded successfully"})
+	})
+
+	// Create a test request to the route
+	req, _ := http.NewRequest(http.MethodPost, "/upload", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	// Check the response
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected HTTP status 200, got: %d", w.Code)
 	}
 }

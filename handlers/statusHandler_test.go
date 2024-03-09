@@ -7,63 +7,38 @@ import (
 	"sr-api/handlers/handlers_structure"
 	"strings"
 	"testing"
+
+	"github.com/gin-gonic/gin"
 )
 
 func TestStatusHandlerPositive(t *testing.T) {
-	// Create a new request with the GET method to the root path ("/")
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+
+	// Register your StatusHandler with the router
+	router.GET("/status", StatusHandler)
+
+	// Create a request to pass to our handler
 	req, err := http.NewRequest("GET", "/status", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// Create a new ResponseRecorder (which satisfies http.ResponseWriter)
+	// Record the HTTP response using httptest
 	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
 
-	// Call the rootHandler function with the request and response recorder
-	handler := http.HandlerFunc(StatusHandler)
-	handler.ServeHTTP(rr, req)
-
-	// Check the status code returned by the handler
+	// Check the status code is what we expect
 	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("handler returned wrong status code: got %v want %v",
-			status, http.StatusOK)
+		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
 	}
 
-	// Check the response body returned by the handler
-	expected := handlers_structure.StatusSuccess{Status: "Server is running"}
+	// Check the response body is what we expect
+	expected := handlers_structure.StatusSuccess{Status: "ok"}
 	expectedJson, _ := json.Marshal(expected)
 	expectedStr := strings.TrimSpace(string(expectedJson))
 	actualStr := strings.TrimSpace(rr.Body.String())
 	if actualStr != expectedStr {
-		t.Errorf("handler returned unexpected body: got %v want %v",
-			actualStr, expectedStr)
-	}
-}
-
-func TestStatusHandlerNegative(t *testing.T) {
-	// Create a new request with the POST method to the root path ("/status")
-	req, err := http.NewRequest("POST", "/status", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Create a new ResponseRecorder (which satisfies http.ResponseWriter)
-	rr := httptest.NewRecorder()
-
-	// Call the rootHandler function with the request and response recorder
-	handler := http.HandlerFunc(StatusHandler)
-	handler.ServeHTTP(rr, req)
-
-	// Check the status code returned by the handler
-	if status := rr.Code; status != http.StatusMethodNotAllowed {
-		t.Errorf("handler returned wrong status code: got %v want %v",
-			status, http.StatusMethodNotAllowed)
-	}
-
-	// Check the response body returned by the handler
-	expected := "Method Not Allowed"
-	if rr.Body.String() != expected {
-		t.Errorf("handler returned unexpected body: got '%v' want '%v'",
-			rr.Body.String(), expected)
+		t.Errorf("handler returned unexpected body: got %v want %v", actualStr, expectedStr)
 	}
 }

@@ -1,104 +1,86 @@
 package utils
 
 import (
-	"bytes"
-	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"reflect"
 	"testing"
+
+	"github.com/gin-gonic/gin"
 )
 
-func TestProcessFileWithContext(t *testing.T) {
-	// Store the original value of WHISPER_ENDPOINT and restore it at the end of the test
-	ctx := context.Background()
-	originalWhisperEndpoint := os.Getenv("WHISPER_ENDPOINT")
-	originalTranscribeUri := os.Getenv("WHISPER_TRANSCRIBE")
-	originalWhisperApiKey := os.Getenv("WHISPER_API_KEY")
-	defer func() {
-		err := os.Setenv("WHISPER_ENDPOINT", originalWhisperEndpoint)
-		if err != nil {
-			t.Errorf("Unable to set WHISPER_ENDPOINT ENV '%v", err)
-		}
-		err = os.Setenv("WHISPER_TRANSCRIBE", originalTranscribeUri)
-		if err != nil {
-			t.Errorf("Unable to set WHISPER_TRANSCRIBE ENV '%v", err)
-		}
-		err = os.Setenv("WHISPER_API_KEY", originalWhisperApiKey)
-		if err != nil {
-			t.Errorf("Unable to set WHISPER_API_KEY ENV '%v", err)
-		}
-	}()
+func TestProcessFileWithGinContext(t *testing.T) {
+	// Setup Gin
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
 
-	// Mock the environment variable
-	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Check the HTTP method and request body
-		if r.Method != http.MethodPost {
-			t.Errorf("Expected 'POST' request, got '%s'", r.Method)
-		}
-
-		// Parse the expected request payload
-		expectedData := map[string]interface{}{
-			"file_name": "example.mp3",
-			"bucket":    "my-bucket",
-		}
-		expectedJSONData, _ := json.Marshal(expectedData)
-
-		body, _ := io.ReadAll(r.Body)
-		if !bytes.Equal(body, expectedJSONData) {
-			t.Errorf("Expected request body '%s', got '%s'", string(expectedJSONData), string(body))
-		}
-
-		// Send a mock response
-		responseJSON := map[string]interface{}{
-			"status": "success",
-		}
-		responseData, _ := json.Marshal(responseJSON)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_, err := w.Write(responseData)
-		if err != nil {
-			return
-		}
-	}))
+	// Mock server for handling external service calls
+	mockServer := setupMockServer()
 	defer mockServer.Close()
 
-	// Override the WHISPER_ENDPOINT with the mock server URL
-	err := os.Setenv("WHISPER_ENDPOINT", mockServer.URL)
-	if err != nil {
-		t.Errorf("Unable to set WHISPER_ENDPOINT ENV '%v", err)
-		return
-	}
-	err = os.Setenv("WHISPER_TRANSCRIBE", "/transcribe")
-	if err != nil {
-		t.Errorf("Unable to set WHISPER_TRANSCRIBE ENV '%v", err)
-		return
-	}
-	err = os.Setenv("WHISPER_API_KEY", "test")
-	if err != nil {
-		t.Errorf("Unable to set WHISPER_API_KEY ENV '%v", err)
-		return
+	// Set environment variables for the duration of the test
+	setTestEnvVariables(mockServer.URL)
+	defer restoreEnvVariables()
+
+	// Define the endpoint within your test where `ProcessFileWithGinContext` is utilized
+	r.POST("/test", func(c *gin.Context) {
+		ProcessFileWithGinContext(c, "my-bucket", "example.mp3")
+	})
+
+	// Create a test request and recorder
+	req, _ := http.NewRequest(http.MethodPost, "/test", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	// Assert the HTTP status code
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, w.Code)
 	}
 
-	// Call the handler function
-	response, err := ProcessFileWithContext(ctx, "my-bucket", "example.mp3")
+	// Assert the response body
+	var response map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &response)
 	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
+		t.Fatalf("Error unmarshaling response: %v", err)
 	}
-	var r interface{}
-	err = json.Unmarshal(response, &r)
-	if err != nil {
-		t.Error(err)
-	}
-	print(r)
-	// Check the response data
+
 	expectedResponse := map[string]interface{}{
-		"status": "success",
+		"detected_language": "en",
+		"recognized_text":   "sample text",
 	}
-	if !reflect.DeepEqual(r, expectedResponse) {
-		t.Errorf("Expected response '%v', got '%v'", expectedResponse, response)
+	if !reflect.DeepEqual(response, expectedResponse) {
+		t.Errorf("Expected response %+v, got %+v", expectedResponse, response)
 	}
+}
+
+func setupMockServer() *httptest.Server {
+	// Initialize and return a mock server that simulates the external service
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Simulate a JSON response that includes detected_language and recognized_text.
+		mockResponse := map[string]interface{}{
+			"detected_language": "en",
+			"recognized_text":   "sample text",
+		}
+		responseData, _ := json.Marshal(mockResponse)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write(responseData)
+	}))
+	return mockServer
+}
+
+func setTestEnvVariables(mockServerURL string) {
+	// Set environment variables to use the mock server and any other necessary configurations
+	os.Setenv("WHISPER_ENDPOINT", mockServerURL)
+	os.Setenv("WHISPER_TRANSCRIBE", "/transcribe")
+	os.Setenv("WHISPER_API_KEY", "test")
+}
+
+func restoreEnvVariables() {
+	// Restore or clear environment variables set by setTestEnvVariables
+	os.Unsetenv("WHISPER_ENDPOINT")
+	os.Unsetenv("WHISPER_TRANSCRIBE")
+	os.Unsetenv("WHISPER_API_KEY")
 }

@@ -10,7 +10,7 @@ type UploadSuccess struct {
 }
 
 type StatusSuccess struct {
-	Status string
+	Status string `json:"status"`
 }
 
 type RecognitionSuccess struct {

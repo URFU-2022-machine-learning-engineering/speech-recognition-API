@@ -2,20 +2,18 @@ package utils
 
 import (
 	"context"
-	"net/http"
-
+	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
 
-// StartSpanFromRequest initializes a new tracing span for an HTTP request.
-// It returns the newly created span along with the context that has been updated to include the span.
-func StartSpanFromRequest(r *http.Request, spanName string) (context.Context, trace.Span) {
-	tr := otel.Tracer("whisper-speech-recognition-api")
-	ctx, span := tr.Start(r.Context(), spanName, trace.WithAttributes(
-		attribute.String("http.method", r.Method),
-		attribute.String("http.url", r.URL.String()),
+// StartSpanFromGinContext initializes a new tracing span for an HTTP request within a Gin context.
+func StartSpanFromGinContext(c *gin.Context, spanName string) (context.Context, trace.Span) {
+	tr := otel.Tracer("sr-api") // Change "your-service-name" to the actual name of your service.
+	ctx, span := tr.Start(c.Request.Context(), spanName, trace.WithAttributes(
+		attribute.String("http.method", c.Request.Method),
+		attribute.String("http.url", c.Request.URL.String()),
 	))
 	return ctx, span
 }
