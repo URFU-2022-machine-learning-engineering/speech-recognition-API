@@ -1,8 +1,9 @@
-package utils
+package tests
 
 import (
 	"context"
 	"io"
+	"sr-api/helpers"
 	"strings"
 	"testing"
 )
@@ -44,10 +45,10 @@ func TestCheckFileSignature_ValidAudioFile(t *testing.T) {
 	// Create a context
 	ctx := context.Background()
 
-	audioFile := &mockFile{content: "\xFF\xFB" + strings.Repeat("\x00", SignatureLength-2)}
+	audioFile := &mockFile{content: "\xFF\xFB" + strings.Repeat("\x00", helpers.SignatureLength-2)}
 
 	// Pass context to the function
-	err := CheckFileSignatureWithContext(ctx, audioFile)
+	err := helpers.CheckFileSignatureWithContext(ctx, audioFile)
 	if err != nil {
 		t.Errorf("Expected no error for valid audio file, got: %v", err)
 	}
@@ -57,10 +58,10 @@ func TestCheckFileSignature_SmallFile(t *testing.T) {
 	// Create a context
 	ctx := context.Background()
 
-	smallFile := &mockFile{content: strings.Repeat("\x00", SignatureLength-1)}
+	smallFile := &mockFile{content: strings.Repeat("\x00", helpers.SignatureLength-1)}
 
 	// Pass context to the function
-	err := CheckFileSignatureWithContext(ctx, smallFile)
+	err := helpers.CheckFileSignatureWithContext(ctx, smallFile)
 	expectedError := "file size too small" // Update this based on the actual error message your function returns
 	if err == nil || !strings.Contains(err.Error(), expectedError) {
 		t.Errorf("Expected error '%s' for small file, got: %v", expectedError, err)
@@ -71,10 +72,10 @@ func TestCheckFileSignature_NonAudioFile(t *testing.T) {
 	// Create a context
 	ctx := context.Background()
 
-	textFile := &mockFile{content: "Hello, world!" + strings.Repeat("\x00", SignatureLength-12)} // Adjusted for the new length check
+	textFile := &mockFile{content: "Hello, world!" + strings.Repeat("\x00", helpers.SignatureLength-12)} // Adjusted for the new length check
 
 	// Pass context to the function
-	err := CheckFileSignatureWithContext(ctx, textFile)
+	err := helpers.CheckFileSignatureWithContext(ctx, textFile)
 	expectedError := "unknown file type" // Update this based on the actual error message your function returns
 	if err == nil || !strings.Contains(err.Error(), expectedError) {
 		t.Errorf("Expected error '%s' for non-audio file, got: %v", expectedError, err)
@@ -88,11 +89,11 @@ func TestCheckFileSignature_FilePointerResetAfterRead(t *testing.T) {
 	// Simulate a file with a valid signature that is initially read, then fully processed
 	// The mock file content includes a known valid file signature followed by arbitrary data
 	validSignature := "\xFF\xFB" // Example valid signature for demonstration
-	fileContent := validSignature + strings.Repeat("\x00", SignatureLength-2) + "Extra file content to simulate actual file data beyond the signature"
+	fileContent := validSignature + strings.Repeat("\x00", helpers.SignatureLength-2) + "Extra file content to simulate actual file data beyond the signature"
 	file := &mockFile{content: fileContent}
 
 	// Pass context and the mock file to the function
-	err := CheckFileSignatureWithContext(ctx, file)
+	err := helpers.CheckFileSignatureWithContext(ctx, file)
 	if err != nil {
 		t.Errorf("Expected no error after file signature read and reset, got: %v", err)
 	}

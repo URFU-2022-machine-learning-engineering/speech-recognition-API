@@ -9,6 +9,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
+	"sr-api/helpers"
 )
 
 // GetEnv retrieves an environment variable or sends an error response if not set.
@@ -23,7 +24,7 @@ func GetEnv(c *gin.Context, key string) (string, bool) {
 
 // UploadToMinioWithContext uploads a file to Minio storage, incorporating context for tracing and zerolog for logging.
 func UploadToMinioWithContext(c *gin.Context, filename string, file multipart.File, size int64) error {
-	ctx, span := StartSpanFromGinContext(c, "UploadToMinioWithContext")
+	ctx, span := helpers.StartSpanFromGinContext(c, "UploadToMinioWithContext")
 	defer span.End()
 
 	minioAccessKey, ok := GetEnv(c, "MINIO_ACCESS_KEY")

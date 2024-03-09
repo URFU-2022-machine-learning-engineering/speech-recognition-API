@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"path"
 	"sr-api/handlers/handlers_structure"
+	"sr-api/helpers"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel/attribute"
@@ -15,11 +16,11 @@ import (
 )
 
 func ProcessFileWithGinContext(c *gin.Context, bucketName, fileName string) {
-	ctx, span := StartSpanFromGinContext(c, "ProcessFileWithGinContext")
+	ctx, span := helpers.StartSpanFromGinContext(c, "ProcessFileWithGinContext")
 	defer span.End()
 
-	whisperEndpoint := GetEnvOrShutdownWithTelemetry(ctx, "WHISPER_ENDPOINT")
-	whisperTranscribe := GetEnvOrShutdownWithTelemetry(ctx, "WHISPER_TRANSCRIBE")
+	whisperEndpoint := helpers.GetEnvOrShutdownWithTelemetry(ctx, "WHISPER_ENDPOINT")
+	whisperTranscribe := helpers.GetEnvOrShutdownWithTelemetry(ctx, "WHISPER_TRANSCRIBE")
 
 	u, err := url.Parse(whisperEndpoint)
 	if err != nil {

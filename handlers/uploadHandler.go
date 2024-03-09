@@ -9,11 +9,12 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sr-api/helpers"
 	"sr-api/utils"
 )
 
 func UploadHandler(c *gin.Context) {
-	ctx, span := utils.StartSpanFromGinContext(c, "UploadHandler")
+	ctx, span := helpers.StartSpanFromGinContext(c, "UploadHandler")
 	defer span.End()
 
 	log.Info().Msg("Received POST request")
@@ -33,7 +34,7 @@ func UploadHandler(c *gin.Context) {
 	defer openedFile.Close()
 
 	// Check file signature with tracing (adapted to use Gin context)
-	if err := utils.CheckFileSignatureWithContext(ctx, openedFile); err != nil {
+	if err := helpers.CheckFileSignatureWithContext(ctx, openedFile); err != nil {
 		span.RecordError(err)
 		utils.RespondWithError(c, http.StatusBadRequest, "Invalid file signature")
 		return
@@ -41,7 +42,7 @@ func UploadHandler(c *gin.Context) {
 
 	// Generate a new filename and attempt to upload
 	fileExt := filepath.Ext(file.Filename)
-	fileName := fmt.Sprintf("%s%s", utils.GenerateUIDWithContext(ctx), fileExt)
+	fileName := fmt.Sprintf("%s%s", helpers.GenerateUIDWithContext(ctx), fileExt)
 	if err := utils.UploadToMinioWithContext(c, fileName, openedFile, file.Size); err != nil {
 		span.RecordError(err)
 		utils.RespondWithError(c, http.StatusInternalServerError, "Failed to upload file to storage")

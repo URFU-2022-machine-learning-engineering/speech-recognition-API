@@ -1,4 +1,4 @@
-package utils
+package tests
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"sr-api/utils"
 	"time"
 
 	"github.com/minio/minio-go/v7"
@@ -208,7 +209,7 @@ func TestUploadToMinioWithTestContainer(t *testing.T) {
 		// Simulate receiving a file part as `file`, similar to how you'd receive it in a real request
 		file := &mockAudioFile{content: "test content"}
 		// Use the c.Request.Context() for operations that need a context.Context
-		if err := UploadToMinioWithContext(c, "testfile.mp3", file, int64(len(file.content))); err != nil {
+		if err := utils.UploadToMinioWithContext(c, "testfile.mp3", file, int64(len(file.content))); err != nil {
 			// Handle error...
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload file"})
 			return

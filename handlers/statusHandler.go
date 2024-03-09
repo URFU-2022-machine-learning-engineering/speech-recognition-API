@@ -4,11 +4,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
 	"net/http"
-	"sr-api/utils"
+	"sr-api/helpers"
 )
 
 func StatusHandler(c *gin.Context) {
-	_, span := utils.StartSpanFromGinContext(c, "StatusHandler")
+	_, span := helpers.StartSpanFromGinContext(c, "StatusHandler")
 	defer span.End()
 
 	c.JSON(http.StatusOK, gin.H{

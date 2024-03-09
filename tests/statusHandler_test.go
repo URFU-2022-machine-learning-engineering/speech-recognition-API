@@ -1,9 +1,10 @@
-package handlers
+package tests
 
 import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"sr-api/handlers"
 	"sr-api/handlers/handlers_structure"
 	"strings"
 	"testing"
@@ -16,7 +17,7 @@ func TestStatusHandlerPositive(t *testing.T) {
 	router := gin.Default()
 
 	// Register your StatusHandler with the router
-	router.GET("/status", StatusHandler)
+	router.GET("/status", handlers.StatusHandler)
 
 	// Create a request to pass to our handler
 	req, err := http.NewRequest("GET", "/status", nil)

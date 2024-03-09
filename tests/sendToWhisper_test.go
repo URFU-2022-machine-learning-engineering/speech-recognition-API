@@ -1,4 +1,4 @@
-package utils
+package tests
 
 import (
 	"encoding/json"
@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"reflect"
+	"sr-api/utils"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -26,7 +27,7 @@ func TestProcessFileWithGinContext(t *testing.T) {
 
 	// Define the endpoint within your test where `ProcessFileWithGinContext` is utilized
 	r.POST("/test", func(c *gin.Context) {
-		ProcessFileWithGinContext(c, "my-bucket", "example.mp3")
+		utils.ProcessFileWithGinContext(c, "my-bucket", "example.mp3")
 	})
 
 	// Create a test request and recorder
