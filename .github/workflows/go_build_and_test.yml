@@ -34,6 +34,5 @@ jobs:
       - name: Test
         run: |
           TEST_STATUS=0
-          go test -v ./utils/ || TEST_STATUS=$?
-          go test -v ./handlers/ || TEST_STATUS=$?
+          go test -v ./tests || TEST_STATUS=$?
           exit $TEST_STATUS

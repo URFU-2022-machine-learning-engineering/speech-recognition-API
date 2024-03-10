@@ -2,114 +2,95 @@ package utils
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
-	"go.opentelemetry.io/otel/codes"
-	"io"
 	"net/http"
 	"net/url"
 	"path"
 	"sr-api/handlers/handlers_structure"
+	"sr-api/helpers"
 
+	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
-
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 )
 
-// processResponse processes the response body. It attempts to unmarshal the body into JSON.
-// If the unmarshalling is unsuccessful, it logs the response as a string for debugging.
-func processResponse(ctx context.Context, body []byte) ([]byte, error) {
-	tracer := otel.Tracer("utils")
-	_, span := tracer.Start(ctx, "processResponse")
+func ProcessFileWithGinContext(c *gin.Context, bucketName, fileName string) {
+	ctx, span := helpers.StartSpanFromGinContext(c, "ProcessFileWithGinContext")
 	defer span.End()
 
-	var response json.RawMessage // Use RawMessage for delayed unmarshalling
-	err := json.Unmarshal(body, &response)
-	if err != nil {
-		// If the body cannot be unmarshalled into JSON, log and return an error
-		log.Error().Err(err).Str("response", string(body)).Msg("Failed to unmarshal JSON response")
-		span.SetAttributes(attribute.String("response.type", "invalid-json"))
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "Failed to unmarshal JSON response")
-		return nil, fmt.Errorf("invalid JSON response: %w", err)
-	}
+	log.Debug().Str("bucket", bucketName).Str("file", fileName).Msg("Initiating file processing")
 
-	log.Info().Msg("Received JSON response")
-	span.SetAttributes(attribute.String("response.type", "json"))
-	span.SetStatus(codes.Ok, "Successfully processed response")
-	return body, nil // Return the original body for further processing or forwarding
-}
-
-func ProcessFileWithContext(ctx context.Context, bucketName, fileName string) ([]byte, error) {
-	tracer := otel.Tracer("utils")
-	ctx, span := tracer.Start(ctx, "ProcessFileWithContext")
-	defer span.End()
-	log.Info().Msgf("Processing file: %s", fileName)
-
-	whisperEndpoint := GetEnvOrShutdownWithTelemetry(ctx, "WHISPER_ENDPOINT")
-	whisperTranscribe := GetEnvOrShutdownWithTelemetry(ctx, "WHISPER_TRANSCRIBE")
+	whisperEndpoint := helpers.GetEnvOrShutdownWithTelemetry(c, "WHISPER_ENDPOINT")
+	whisperTranscribe := helpers.GetEnvOrShutdownWithTelemetry(c, "WHISPER_TRANSCRIBE")
 
 	u, err := url.Parse(whisperEndpoint)
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to parse whisper endpoint URL")
+		log.Error().Err(err).Msg("Invalid Whisper endpoint URL")
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Invalid Whisper endpoint URL: %v", err)})
 		span.RecordError(err)
-		return nil, err
+		span.SetStatus(codes.Error, "Invalid Whisper endpoint URL")
+		return
 	}
 
 	u.Path = path.Join(u.Path, whisperTranscribe)
 	whisperTranscribeURL := u.String()
-	log.Debug().Msgf("Whisper transcribe URL: %s", whisperTranscribeURL)
+
+	log.Debug().Str("whisperTranscribeURL", whisperTranscribeURL).Msg("Whisper transcribe URL constructed")
+
 	data := handlers_structure.SendData{BucketName: bucketName, FileName: fileName}
-	log.Debug().Msgf("Data: %v", data)
 	jsonData, err := json.Marshal(data)
-	log.Debug().Msgf("JSON data: %s", jsonData)
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to marshal JSON data")
+		log.Error().Err(err).Msg("Error marshaling request data")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Error marshaling request data"})
 		span.RecordError(err)
-		return nil, err
+		return
 	}
 
 	req, err := http.NewRequestWithContext(ctx, "POST", whisperTranscribeURL, bytes.NewBuffer(jsonData))
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to create new request")
+		log.Error().Err(err).Msg("Failed to create request")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create request"})
 		span.RecordError(err)
-		return nil, err
+		span.SetStatus(codes.Error, "Failed to create request")
+		return
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Connection", "keep-alive")
-	req.Header.Set("Authorization", "Bearer "+GetEnvOrShutdownWithTelemetry(ctx, "WHISPER_API_KEY"))
+	// Add other headers like Authorization here if needed
+
+	log.Debug().Msg("Sending request to Whisper service")
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to send request")
+		log.Error().Err(err).Msg("Failed to send request to Whisper service")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send request to Whisper service"})
 		span.RecordError(err)
-		return nil, err
+		span.SetStatus(codes.Error, "Failed to send request to Whisper service")
+		return
 	}
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to close response body")
-		}
-	}(resp.Body)
+	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to read response body")
-		span.RecordError(err)
-		return nil, err
+	if resp.StatusCode != http.StatusOK {
+		log.Error().Int("status_code", resp.StatusCode).Msg("Whisper service returned an error")
+		c.JSON(resp.StatusCode, gin.H{"error": "Whisper service returned an error"})
+		span.SetStatus(codes.Error, fmt.Sprintf("Whisper service error: %d", resp.StatusCode))
+		return
 	}
 
-	response, err := processResponse(ctx, body)
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to process response")
+	var recognitionResult handlers_structure.RecognitionSuccess
+	if err := json.NewDecoder(resp.Body).Decode(&recognitionResult); err != nil {
+		log.Error().Err(err).Msg("Failed to decode Whisper service response")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to decode Whisper service response"})
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "Failed to process response")
-		return nil, err
+		span.SetStatus(codes.Error, "Failed to decode Whisper service response")
+		return
 	}
 
+	log.Info().Str("file", fileName).Msg("File processing completed successfully")
+	c.JSON(http.StatusOK, recognitionResult)
+	span.SetAttributes(attribute.String("response.status", "success"))
 	span.SetStatus(codes.Ok, "File processed successfully")
-	return response, nil
 }
