@@ -6,6 +6,7 @@ import (
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/rs/zerolog/log"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -16,13 +17,14 @@ import (
 func GetEnv(c *gin.Context, key string) (string, bool) {
 	value := os.Getenv(key)
 	if value == "" {
+		log.Fatal().Str("environment.variable", key).Msg(key + " environment variable is not set")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": key + " environment variable is not set"})
 		return "", false
 	}
 	return value, true
 }
 
-// UploadToMinioWithContext uploads a file to Minio storage, incorporating context for tracing and zerolog for logging.
+// UploadToMinioWithContext uploads a file to MinIO storage
 func UploadToMinioWithContext(c *gin.Context, filename string, file multipart.File, size int64) error {
 	ctx, span := helpers.StartSpanFromGinContext(c, "UploadToMinioWithContext")
 	defer span.End()
@@ -69,6 +71,7 @@ func UploadToMinioWithContext(c *gin.Context, filename string, file multipart.Fi
 		attribute.String("file.name", filename),
 		attribute.Int64("minio.file.size", info.Size),
 	)
+	span.SetStatus(codes.Ok, "File uploaded successfully")
 	log.Info().
 		Str("file.name", filename).
 		Int64("minio.file.size", info.Size).

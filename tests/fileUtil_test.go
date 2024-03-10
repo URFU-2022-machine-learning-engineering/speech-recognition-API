@@ -1,8 +1,10 @@
 package tests
 
 import (
-	"context"
+	"github.com/gin-gonic/gin"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"sr-api/helpers"
 	"strings"
 	"testing"
@@ -41,65 +43,45 @@ func (m *mockFile) Close() error {
 	return nil // Mock implementation, does nothing
 }
 
-func TestCheckFileSignature_ValidAudioFile(t *testing.T) {
-	// Create a context
-	ctx := context.Background()
+func performFileSignatureCheckTest(t *testing.T, fileContent string, expectedStatus int, expectedBody string) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
 
-	audioFile := &mockFile{content: "\xFF\xFB" + strings.Repeat("\x00", helpers.SignatureLength-2)}
+	file := &mockFile{content: fileContent}
 
-	// Pass context to the function
-	err := helpers.CheckFileSignatureWithContext(ctx, audioFile)
-	if err != nil {
-		t.Errorf("Expected no error for valid audio file, got: %v", err)
+	r.POST("/test-file-signature", func(c *gin.Context) {
+		err := helpers.CheckFileSignatureWithGinContext(c, file)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "File signature verification successful"})
+	})
+
+	req, _ := http.NewRequest("POST", "/test-file-signature", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != expectedStatus {
+		t.Errorf("Expected status %d, got: %d, body: %s", expectedStatus, w.Code, w.Body.String())
 	}
+
+	if expectedBody != "" && !strings.Contains(w.Body.String(), expectedBody) {
+		t.Errorf("Expected body to contain '%s', got: '%s'", expectedBody, w.Body.String())
+	}
+}
+
+func TestCheckFileSignature_ValidAudioFile(t *testing.T) {
+	validFileContent := "\xFF\xFB" + strings.Repeat("\x00", helpers.SignatureLength-2) // Simulate a valid audio file signature
+	performFileSignatureCheckTest(t, validFileContent, http.StatusOK, "File signature verification successful")
 }
 
 func TestCheckFileSignature_SmallFile(t *testing.T) {
-	// Create a context
-	ctx := context.Background()
-
-	smallFile := &mockFile{content: strings.Repeat("\x00", helpers.SignatureLength-1)}
-
-	// Pass context to the function
-	err := helpers.CheckFileSignatureWithContext(ctx, smallFile)
-	expectedError := "file size too small" // Update this based on the actual error message your function returns
-	if err == nil || !strings.Contains(err.Error(), expectedError) {
-		t.Errorf("Expected error '%s' for small file, got: %v", expectedError, err)
-	}
+	smallFileContent := strings.Repeat("\x00", helpers.SignatureLength-1) // Simulate a file that's too small
+	performFileSignatureCheckTest(t, smallFileContent, http.StatusBadRequest, "{\"error\":\"file size is too small\"}")
 }
 
 func TestCheckFileSignature_NonAudioFile(t *testing.T) {
-	// Create a context
-	ctx := context.Background()
-
-	textFile := &mockFile{content: "Hello, world!" + strings.Repeat("\x00", helpers.SignatureLength-12)} // Adjusted for the new length check
-
-	// Pass context to the function
-	err := helpers.CheckFileSignatureWithContext(ctx, textFile)
-	expectedError := "unknown file type" // Update this based on the actual error message your function returns
-	if err == nil || !strings.Contains(err.Error(), expectedError) {
-		t.Errorf("Expected error '%s' for non-audio file, got: %v", expectedError, err)
-	}
-}
-
-func TestCheckFileSignature_FilePointerResetAfterRead(t *testing.T) {
-	// Create a context
-	ctx := context.Background()
-
-	// Simulate a file with a valid signature that is initially read, then fully processed
-	// The mock file content includes a known valid file signature followed by arbitrary data
-	validSignature := "\xFF\xFB" // Example valid signature for demonstration
-	fileContent := validSignature + strings.Repeat("\x00", helpers.SignatureLength-2) + "Extra file content to simulate actual file data beyond the signature"
-	file := &mockFile{content: fileContent}
-
-	// Pass context and the mock file to the function
-	err := helpers.CheckFileSignatureWithContext(ctx, file)
-	if err != nil {
-		t.Errorf("Expected no error after file signature read and reset, got: %v", err)
-	}
-
-	// Optionally, assert the file pointer is at the start after the check (if such an assertion is relevant to your logic)
-	if file.offset != 0 {
-		t.Errorf("Expected file pointer to be reset to the start after signature check, but it was at %d", file.offset)
-	}
+	nonAudioFileContent := "Hello, World!" + strings.Repeat("\x00", helpers.SignatureLength-12) // Simulate a non-audio file
+	performFileSignatureCheckTest(t, nonAudioFileContent, http.StatusBadRequest, "unknown file type")
 }

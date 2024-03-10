@@ -1,21 +1,19 @@
 package helpers
 
 import (
-	"context"
+	"github.com/gin-gonic/gin"
 	"os"
 
 	"github.com/rs/zerolog/log"
 
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 )
 
 // GetEnvOrShutdownWithTelemetry retrieves the value of the environment variable named by the key.
 // It logs a critical error, records a trace span, and terminates the application if the variable is empty or not set.
-func GetEnvOrShutdownWithTelemetry(ctx context.Context, key string) string {
-	tracer := otel.Tracer("app_or_package_name")
-	_, span := tracer.Start(ctx, "GetEnvOrShutdownWithTelemetry")
+func GetEnvOrShutdownWithTelemetry(c *gin.Context, key string) string {
+	_, span := StartSpanFromGinContext(c, "GetEnvOrShutdownWithTelemetry "+key)
 	defer span.End()
 
 	value := os.Getenv(key)
