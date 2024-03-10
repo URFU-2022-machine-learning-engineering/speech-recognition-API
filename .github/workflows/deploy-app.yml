@@ -48,7 +48,7 @@ jobs:
             RESPONSE=$(curl --silent http://127.0.0.1:8787/status)
             echo "Attempt $attempt: Service response: $RESPONSE"
           
-            if [[ "$RESPONSE" == *'"Status":"Server is running"'* ]]; then
+            if [[ "$RESPONSE" == *'"status":"ok"'* ]]; then
               success=true
               break
             fi
