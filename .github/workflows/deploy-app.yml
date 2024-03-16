@@ -64,4 +64,3 @@ jobs:
           fi
           
           echo "Service verified successfully"
-

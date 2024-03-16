@@ -27,8 +27,8 @@ services:
     volumes:
       - /var/telemetry/otel-collector-config.yaml:/otel-collector-config.yaml
     ports:
-      - "4317:4317" # OTLP gRPC receiver port, ensuring no conflict with Jaeger
-      - "4318:4318" # OTLP HTTP receiver port, ensuring no conflict with Jaeger
+      - "4317:4317" # OTLP gRPC receiver port
+      - "4318:4318" # OTLP HTTP receiver port
       - "8889:8889" # Prometheus exporter port
     command: ["--config=/otel-collector-config.yaml"]
     depends_on:

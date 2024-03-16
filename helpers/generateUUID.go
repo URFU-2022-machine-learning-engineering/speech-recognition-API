@@ -16,7 +16,8 @@ func GenerateUIDWithContext(c *gin.Context) (string, error) {
 
 	uid, err := uuid.NewUUID()
 	if err != nil {
-		span.SetAttributes(attribute.String("error", err.Error()))
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to generate UUID")
 		return "", err
 	}
 	span.SetStatus(codes.Ok, "UUID generated")

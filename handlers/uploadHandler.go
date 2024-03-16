@@ -5,6 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 	"net/http"
 	"os"
@@ -52,7 +53,6 @@ func UploadHandler(c *gin.Context) {
 	fileExt := filepath.Ext(file.Filename)
 	fileUUID, err := helpers.GenerateUIDWithContext(c)
 	if err != nil {
-		span.RecordError(err)
 		log.Error().Err(err).Msg("Failed to generate UUID for file")
 		utils.RespondWithError(c, http.StatusInternalServerError, "Server error")
 		return
@@ -60,6 +60,7 @@ func UploadHandler(c *gin.Context) {
 	fileName := fmt.Sprintf("%s%s", fileUUID, fileExt)
 	if err := utils.UploadToMinioWithContext(c, fileName, openedFile, file.Size); err != nil {
 		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to upload file to storage")
 		log.Error().Err(err).Str("file_name", fileName).Msg("Failed to upload file to storage")
 		utils.RespondWithError(c, http.StatusInternalServerError, "Failed to upload file to storage")
 		return
@@ -71,4 +72,5 @@ func UploadHandler(c *gin.Context) {
 	// Process the file after successful upload
 	utils.ProcessFileWithGinContext(c, os.Getenv("MINIO_BUCKET"), fileName)
 	log.Debug().Str("bucket", os.Getenv("MINIO_BUCKET")).Str("file_name", fileName).Msg("Initiated file processing")
+	span.SetStatus(codes.Ok, "Successfully uploaded the file")
 }
