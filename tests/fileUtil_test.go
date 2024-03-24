@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"bytes"
 	"github.com/gin-gonic/gin"
 	"io"
 	"net/http"
@@ -50,7 +51,8 @@ func performFileSignatureCheckTest(t *testing.T, fileContent string, expectedSta
 	file := &mockFile{content: fileContent}
 
 	r.POST("/test-file-signature", func(c *gin.Context) {
-		err := helpers.CheckFileSignatureWithGinContext(c, file)
+		reader := bytes.NewReader([]byte(file.content))
+		_, err := helpers.CheckFileSignatureWithGinContext(c, reader)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
@@ -78,10 +80,10 @@ func TestCheckFileSignature_ValidAudioFile(t *testing.T) {
 
 func TestCheckFileSignature_SmallFile(t *testing.T) {
 	smallFileContent := strings.Repeat("\x00", helpers.SignatureLength-1) // Simulate a file that's too small
-	performFileSignatureCheckTest(t, smallFileContent, http.StatusBadRequest, "{\"error\":\"file size is too small\"}")
+	performFileSignatureCheckTest(t, smallFileContent, http.StatusBadRequest, "{\"error\":\"unexpected EOF\"}")
 }
 
 func TestCheckFileSignature_NonAudioFile(t *testing.T) {
 	nonAudioFileContent := "Hello, World!" + strings.Repeat("\x00", helpers.SignatureLength-12) // Simulate a non-audio file
-	performFileSignatureCheckTest(t, nonAudioFileContent, http.StatusBadRequest, "unknown file type")
+	performFileSignatureCheckTest(t, nonAudioFileContent, http.StatusBadRequest, "{\"error\":\"unknown content type\"}")
 }

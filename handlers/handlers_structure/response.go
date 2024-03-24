@@ -17,3 +17,7 @@ type RecognitionSuccess struct {
 	DetectedLang   string `json:"detected_language"`
 	RecognizedText string `json:"recognized_text"`
 }
+
+type WsErrorResponse struct {
+	Error string `json:"error"`
+}

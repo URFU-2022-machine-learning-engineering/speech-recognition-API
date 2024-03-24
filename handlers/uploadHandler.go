@@ -41,7 +41,7 @@ func UploadHandler(c *gin.Context) {
 	log.Debug().Msg("Opened file successfully")
 
 	// Check file signature with tracing (adapted to use Gin context)
-	if err := helpers.CheckFileSignatureWithGinContext(c, openedFile); err != nil {
+	if _, err := helpers.CheckFileSignatureWithGinContext(c, openedFile); err != nil {
 		span.RecordError(err)
 		log.Error().Err(err).Msg("Invalid file signature")
 		utils.RespondWithError(c, http.StatusBadRequest, "Invalid file signature")

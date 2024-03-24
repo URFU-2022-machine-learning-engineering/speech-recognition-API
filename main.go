@@ -5,7 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
-	"sr-api/handlers" // Ensure this path is correct
+	"sr-api/handlers"
 )
 
 func main() {
@@ -30,6 +30,7 @@ func main() {
 
 	// Set up routes
 	r.GET("/status", handlers.StatusHandler)
+	r.GET("/ws", handlers.WsHandler)
 	r.POST("/upload", handlers.UploadHandler)
 
 	// Start server

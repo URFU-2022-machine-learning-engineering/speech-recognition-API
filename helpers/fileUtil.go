@@ -7,72 +7,51 @@ import (
 	"github.com/rs/zerolog/log"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/trace"
 	"io"
-	"mime/multipart"
 )
 
 const SignatureLength = 261
 
-// CheckFileSignatureWithGinContext checks if the given file has a valid file signature
+// CheckFileSignatureWithGinContext checks if the given reader (file or bytes) has a valid file signature
 // within a Gin application context, utilizing tracing.
-func CheckFileSignatureWithGinContext(c *gin.Context, file multipart.File) error {
+func CheckFileSignatureWithGinContext(c *gin.Context, reader io.Reader) (string, error) {
 	_, span := StartSpanFromGinContext(c, "CheckFileSignatureWithGinContext")
 	defer span.End()
 
 	log.Debug().Msg("Initiating file signature verification process")
 
-	// File size check...
-	size, err := file.Seek(0, io.SeekEnd)
-	if err != nil {
-		logAndSpanError(span, err, "Failed to seek file to end")
-		return err
-	}
-	if size < SignatureLength {
-		err := fmt.Errorf("file size is too small")
-		logAndSpanError(span, err, "File size too small for signature check")
-		return err
-	}
-	log.Debug().Msg("File size validation passed")
-
-	if _, err := file.Seek(0, io.SeekStart); err != nil {
-		logAndSpanError(span, err, "Failed to reset file pointer to start")
-		return err
-	}
-
-	log.Debug().Msg("Reading file signature")
+	log.Debug().Msg("Reading content signature")
 	buf := make([]byte, SignatureLength)
-	if _, err := file.Read(buf); err != nil {
-		logAndSpanError(span, err, "Failed to read file signature")
-		return err
+	if _, err := io.ReadFull(reader, buf); err != nil {
+		logAndSpanError(span, err, "Failed to read content signature")
+		return "", err
 	}
 
-	// Reset the file pointer to the start after reading the signature
-	if _, err := file.Seek(0, io.SeekStart); err != nil {
-		logAndSpanError(span, err, "Failed to reset file pointer after signature read")
-		return err
+	// Attempt to reset the reader if it supports seeking
+	if seeker, ok := reader.(io.Seeker); ok {
+		if _, err := seeker.Seek(0, io.SeekStart); err != nil {
+			logAndSpanError(span, err, "Failed to reset reader to start after signature check")
+			return "", err
+		}
+	} else {
+		log.Debug().Msg("Reader does not support seeking, unable to reset after signature check")
+		return "", fmt.Errorf("reader does not support seeking, unable to reset after signature check")
 	}
 
 	kind, err := filetype.Match(buf)
 	if err != nil {
-		logAndSpanError(span, err, "Error matching file type")
-		return err
+		logAndSpanError(span, err, "Error matching content type")
+		return "", err
 	}
 	if kind == filetype.Unknown {
-		err := fmt.Errorf("unknown file type")
-		logAndSpanError(span, err, "File type is unknown")
-		return err
+		err := fmt.Errorf("unknown content type")
+		logAndSpanError(span, err, "Content type is unknown")
+		return "", err
 	}
+	contentType := kind.MIME.Value
+	log.Info().Str("content_type", kind.MIME.Value).Msg("Content signature verification successful")
+	span.SetAttributes(attribute.String("content.type", kind.MIME.Value))
+	span.SetStatus(codes.Ok, "Content signature verified successfully")
 
-	log.Info().Str("file_type", kind.MIME.Value).Msg("File signature verification successful")
-	span.SetAttributes(attribute.String("file.type", kind.MIME.Value))
-	span.SetStatus(codes.Ok, "File signature verified successfully")
-
-	return nil
-}
-
-func logAndSpanError(span trace.Span, err error, message string) {
-	log.Error().Err(err).Msg(message)
-	span.RecordError(err)
-	span.SetAttributes(attribute.String("error.detail", message))
+	return contentType, nil
 }
