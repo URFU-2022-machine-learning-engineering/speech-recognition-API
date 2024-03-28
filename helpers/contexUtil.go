@@ -17,3 +17,10 @@ func StartSpanFromGinContext(c *gin.Context, spanName string) (context.Context, 
 	))
 	return ctx, span
 }
+
+func GetSpanId(span trace.Span) string {
+	// Extract Span ID
+	spanContext := span.SpanContext()
+	spanID := spanContext.SpanID().String()
+	return spanID
+}
