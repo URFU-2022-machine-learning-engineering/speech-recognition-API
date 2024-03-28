@@ -2,7 +2,7 @@ services:
   sr-api:
     container_name: sr-api
     restart: unless-stopped
-    image: dzailz/sr-api:main
+    image: dzailz/sr-api:test-ws
     ports:
       - "8787:8080"
     env_file:
@@ -88,6 +88,7 @@ services:
 
   prometheus:
     container_name: prometheus
+    restart: unless-stopped
     image: prom/prometheus:latest
     volumes:
       - /var/telemetry/prometheus-config.yml:/etc/prometheus/prometheus.yml
@@ -139,6 +140,53 @@ services:
     networks:
       grafana_db:
 
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    container_name: "zookeeper"
+    restart: unless-stopped
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    networks:
+      - kafka-network
+
+  kafka:
+    container_name: "kafka"
+    image: confluentinc/cp-kafka:latest
+    restart: unless-stopped
+    depends_on:
+      - zookeeper
+    ports:
+      - "29092:29092"
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://192.168.111.127:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    networks:
+      - kafka-network
+      - telemetry
+    healthcheck:
+      test: ["CMD", "kafka-topics", "--list", "--bootstrap-server", "kafka:29092"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  kafka-init:
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      kafka:
+        condition: service_healthy
+    command: >
+      sh -c "
+      echo Waiting for Kafka to be ready...
+      cub kafka-ready -b kafka:9092 1 20 &&
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1 --topic send-data &&
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1 --topic recognition
+      "
+    networks:
+      - kafka-network
+
 
 volumes:
   grafana-db: {}
@@ -153,3 +201,5 @@ networks:
   grafana_db:
     driver: bridge
   telemetry:
+  kafka-network:
+    driver: bridge
