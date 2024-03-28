@@ -10,9 +10,9 @@ import (
 func StatusHandler(c *gin.Context) {
 	_, span := helpers.StartSpanFromGinContext(c, "StatusHandler")
 	defer span.End()
-
+	spanID := helpers.GetSpanId(span)
 	c.JSON(http.StatusOK, gin.H{
 		"status": "ok",
 	})
-	log.Info().Str("method", c.Request.Method).Msg("Status endpoint hit")
+	log.Info().Str("span_id", spanID).Str("method", c.Request.Method).Msg("Status endpoint hit")
 }
