@@ -11,5 +11,4 @@ func setupLogging() {
 	zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnixMs
 	log.Logger = log.Output(os.Stderr)
-	// Ensure zerolog logs with proper time formatting
 }
