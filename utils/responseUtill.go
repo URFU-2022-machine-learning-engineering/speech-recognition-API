@@ -5,17 +5,18 @@ import (
 	"github.com/rs/zerolog/log"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 	"sr-api/helpers"
 )
 
 // RespondWithError sends an error response along with tracing the operation.
-func RespondWithError(c *gin.Context, code int, message string) {
-	_, span := helpers.StartSpanFromGinContext(c, "RespondWithError")
+func RespondWithError(c *gin.Context, span trace.Span, err error, code int, message string) {
+	spanID := helpers.GetSpanId(span)
 	span.SetAttributes(attribute.Int("http.status_code", code), attribute.String("error.message", message))
-	defer span.End()
+	span.RecordError(err)
 
-	log.Error().Int("code", code).Str("message", message).Msg("Error response")
+	log.Error().Str("span_id", spanID).Int("http.status_code", code).Msg(message)
 	span.SetStatus(codes.Error, message)
 
-	c.JSON(code, gin.H{"error": message})
+	c.JSON(code, gin.H{"error": "something went wrong, please try again later"})
 }
