@@ -15,10 +15,14 @@ import (
 
 // GetEnv retrieves an environment variable or sends an error response if not set.
 func GetEnv(c *gin.Context, key string) (string, bool) {
+	_, span := helpers.StartSpanFromGinContext(c, "GetEnv")
+	spanID := helpers.GetSpanId(span)
 	value := os.Getenv(key)
 	if value == "" {
-		log.Fatal().Str("environment.variable", key).Msg(key + " environment variable is not set")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": key + " environment variable is not set"})
+		log.Fatal().Str("span_id", spanID).Str("environment.variable", key).Msg(key + " environment variable is not set")
+		span.SetAttributes(attribute.String("fatal", key+" environment variable is not set"))
+		span.SetStatus(codes.Error, key+" environment variable is not set")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "something went wrong, please try again later"})
 		return "", false
 	}
 	return value, true
@@ -26,8 +30,11 @@ func GetEnv(c *gin.Context, key string) (string, bool) {
 
 // UploadToMinioWithContext uploads a file to MinIO storage
 func UploadToMinioWithContext(c *gin.Context, filename string, file multipart.File, size int64) error {
-	ctx, span := helpers.StartSpanFromGinContext(c, "UploadToMinioWithContext")
+	ctx, span := helpers.StartSpanFromGinContext(c, "UploadToMinio")
 	defer span.End()
+
+	// Use the helper function to get the Span ID
+	spanID := helpers.GetSpanId(span)
 
 	minioAccessKey, ok := GetEnv(c, "MINIO_ACCESS_KEY")
 	if !ok {
@@ -53,7 +60,7 @@ func UploadToMinioWithContext(c *gin.Context, filename string, file multipart.Fi
 		Secure: minioUseSSL,
 	})
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to create Minio client")
+		log.Error().Str("span_id", spanID).Err(err).Msg("Failed to create Minio client")
 		span.RecordError(err)
 		return err
 	}
@@ -61,7 +68,7 @@ func UploadToMinioWithContext(c *gin.Context, filename string, file multipart.Fi
 	// Perform the upload
 	info, err := minioClient.PutObject(ctx, bucketName, filename, file, size, minio.PutObjectOptions{})
 	if err != nil {
-		log.Error().Err(err).Str("minio.bucket", bucketName).Msg("Failed to upload file")
+		log.Error().Str("span_id", spanID).Err(err).Str("minio.bucket", bucketName).Msg("Failed to upload file")
 		span.RecordError(err)
 		return err
 	}
@@ -73,6 +80,7 @@ func UploadToMinioWithContext(c *gin.Context, filename string, file multipart.Fi
 	)
 	span.SetStatus(codes.Ok, "File uploaded successfully")
 	log.Info().
+		Str("span_id", spanID).
 		Str("file.name", filename).
 		Int64("minio.file.size", info.Size).
 		Str("minio.bucket", bucketName).
