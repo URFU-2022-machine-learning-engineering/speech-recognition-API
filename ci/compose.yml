@@ -2,7 +2,7 @@ services:
   sr-api:
     container_name: sr-api
     restart: unless-stopped
-    image: dzailz/sr-api:test
+    image: dzailz/sr-api:main
     ports:
       - "8787:8080"
     env_file:
@@ -59,8 +59,8 @@ services:
     ports:
       - "3100:3100"
     volumes:
-      - loki-data:/loki
-      - loki-wal:/loki/wal
+      - speech-recognition-api_loki-data:/loki
+      - speech-recognition-api_loki-wal:/loki/wal
       - /var/telemetry/loki-config.yml:/mnt/config/loki-config.yml
     command: -config.file=/mnt/config/loki-config.yml
     networks:
@@ -75,7 +75,7 @@ services:
       - "14268:14268" # Jaeger Collector HTTP port
       - "14250:14250" # Jaeger Collector gRPC port
     volumes:
-      - jaeger-data:/badger
+      - speech-recognition-api_jaeger-data:/badger
     environment:
       COLLECTOR_OTLP_ENABLED: true
       SPAN_STORAGE_TYPE: badger
@@ -91,7 +91,7 @@ services:
     image: prom/prometheus:latest
     volumes:
       - /var/telemetry/prometheus-config.yml:/etc/prometheus/prometheus.yml
-      - prometheus-data:/prometheus  # Define a volume for Prometheus data storage
+      - speech-recognition-api_prometheus-data:/prometheus  # Define a volume for Prometheus data storage
     ports:
       - "9090:9090"
     command:
@@ -112,7 +112,7 @@ services:
     env_file:
       - /var/telemetry/.env.grafana
     volumes:
-      - grafana-storage:/var/lib/grafana
+      - speech-recognition-api_grafana-storage:/var/lib/grafana
       - /var/telemetry/grafana-config.ini:/etc/grafana/grafana.ini
     depends_on:
       postgres-grafana:
@@ -128,7 +128,7 @@ services:
     env_file:
       - /var/telemetry/.env.grafana
     volumes:
-      - grafana-db:/var/lib/postgresql/data
+      - speech-recognition-api_grafana-db:/var/lib/postgresql/data
     expose:
       - "5432"
     healthcheck:
