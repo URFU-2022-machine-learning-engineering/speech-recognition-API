@@ -2,7 +2,7 @@ services:
   sr-api:
     container_name: sr-api
     restart: unless-stopped
-    image: dzailz/sr-api:main
+    image: dzailz/sr-api:test
     ports:
       - "8787:8080"
     env_file:
@@ -141,13 +141,18 @@ services:
 
 
 volumes:
-  grafana-db: {}
-  grafana-storage: {}
-  loki-data: {}
-  loki-wal: {}
-  influxdb-data: {}
-  jaeger-data: {}
-  prometheus-data: {}
+  speech-recognition-api_grafana-db:
+    external: true
+  speech-recognition-api_grafana-storage:
+    external: true
+  speech-recognition-api_loki-data:
+    external: true
+  speech-recognition-api_loki-wal:
+    external: true
+  speech-recognition-api_jaeger-data:
+    external: true
+  speech-recognition-api_prometheus-data:
+    external: true
 
 networks:
   grafana_db:
