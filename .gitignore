@@ -20,7 +20,7 @@
 .env
 .env.local
 *.river
-compose.local.yml
+ci/compose.local.yml
 
 loki-data
 loki-wal

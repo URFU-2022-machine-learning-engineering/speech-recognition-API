@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"sr-api/handlers"
-	"sr-api/handlers/handlers_structure"
+	"sr-api/internal/adapters/handler"
+	"sr-api/internal/adapters/handler/handlerStructure"
 	"strings"
 	"testing"
 
@@ -17,7 +17,7 @@ func TestStatusHandlerPositive(t *testing.T) {
 	router := gin.Default()
 
 	// Register your StatusHandler with the router
-	router.GET("/status", handlers.StatusHandler)
+	router.GET("/status", handler.StatusHandler)
 
 	// Create a request to pass to our handler
 	req, err := http.NewRequest("GET", "/status", nil)
@@ -35,7 +35,7 @@ func TestStatusHandlerPositive(t *testing.T) {
 	}
 
 	// Check the response body is what we expect
-	expected := handlers_structure.StatusSuccess{Status: "ok"}
+	expected := handlerStructure.StatusSuccess{Status: "ok"}
 	expectedJson, _ := json.Marshal(expected)
 	expectedStr := strings.TrimSpace(string(expectedJson))
 	actualStr := strings.TrimSpace(rr.Body.String())

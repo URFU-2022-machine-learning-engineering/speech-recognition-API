@@ -18,10 +18,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Stop the current installation
-        run: docker compose -f compose.yml down --rmi all --remove-orphans
+        run: docker compose -f ci/compose.yml down --rmi all --remove-orphans
 
       - name: Set up Docker Compose
-        run: docker compose -f compose.yml up -d --remove-orphans
+        run: docker compose -f ci/compose.yml up -d --remove-orphans
 
       - name: Wait for service to be available
         run: |
@@ -64,4 +64,3 @@ jobs:
           fi
           
           echo "Service verified successfully"
-
