@@ -72,7 +72,13 @@ func (repo *WhisperRepository) SendToWhisper(c *gin.Context, fileName string) (h
 
 	log.Debug().Str("span_id", spanID).Msg("Sending request to Whisper service")
 
-	resp := http2.HttpClient(c, req)
+	resp, err := http2.HttpClient(c, req)
+	if err != nil {
+		log.Error().Str("span_id", spanID).Err(err).Msg("Failed to send request to Whisper service")
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Failed to send request to Whisper service")
+		return handlerStructure.RecognitionSuccess{}, err
+	}
 	defer resp.Body.Close()
 
 	var recognitionResult handlerStructure.RecognitionSuccess
