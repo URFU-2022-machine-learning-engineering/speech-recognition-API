@@ -6,7 +6,8 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
-	"sr-api/utils"
+	minio2 "sr-api/internal/adapters/repository"
+	"sr-api/internal/config"
 	"time"
 
 	"github.com/minio/minio-go/v7"
@@ -15,7 +16,6 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 	"io"
 
-	"os"
 	"testing"
 )
 
@@ -57,67 +57,14 @@ func (m *mockAudioFile) Close() error {
 	return nil
 }
 
-func restoreEnvs(
-	originalAccessKey string,
-	originalSecretKey string,
-	originalBucket string,
-	originalUseSSL string,
-	originalRootUser string,
-	originalRootPassword string,
-) {
-	err := os.Setenv("MINIO_ACCESS_KEY", originalAccessKey)
-	if err != nil {
-		log.Fatalf("Failed to restore original environment variable: %v", err)
+func createTestConfig(minioURL string) *config.AppConfig {
+	return &config.AppConfig{
+		MinioAccessKey: "minioadmin",
+		MinioSecretKey: "minioadmin",
+		MinioEndpoint:  minioURL,
+		MinioBucket:    "test-bucket",
+		MinioUseSSL:    false,
 	}
-	err = os.Setenv("MINIO_SECRET_KEY", originalSecretKey)
-	if err != nil {
-		log.Fatalf("Failed to restore original environment variable: %v", err)
-	}
-	err = os.Setenv("MINIO_BUCKET", originalBucket)
-	if err != nil {
-		log.Fatalf("Failed to restore original environment variable: %v", err)
-	}
-	err = os.Setenv("MINIO_USE_SSL", originalUseSSL)
-	if err != nil {
-		log.Fatalf("Failed to restore original environment variable: %v", err)
-	}
-	err = os.Setenv("MINIO_ROOT_USER", originalRootUser)
-	if err != nil {
-		log.Fatalf("Failed to restore original environment variable: %v", err)
-	}
-	err = os.Setenv("MINIO_ROOT_PASSWORD", originalRootPassword)
-	if err != nil {
-		log.Fatalf("Failed to restore original environment variable: %v", err)
-	}
-}
-
-func setupEnvs() {
-	// Set the necessary environment variables for the test
-	err := os.Setenv("MINIO_ACCESS_KEY", "minioadmin")
-	if err != nil {
-		log.Fatalf("Failed to set environment variable: %v", err)
-	}
-	err = os.Setenv("MINIO_BUCKET", "test-bucket")
-	if err != nil {
-		log.Fatalf("Failed to set environment variable: %v", err)
-	}
-	err = os.Setenv("MINIO_SECRET_KEY", "minioadmin")
-	if err != nil {
-		log.Fatalf("Failed to set environment variable: %v", err)
-	}
-	err = os.Setenv("MINIO_USE_SSL", "false")
-	if err != nil {
-		log.Fatalf("Failed to set environment variable: %v", err)
-	}
-	err = os.Setenv("MINIO_ROOT_USER", "minioadmin")
-	if err != nil {
-		log.Fatalf("Failed to set environment variable: %v", err)
-	}
-	err = os.Setenv("MINIO_ROOT_PASSWORD", "minioadmin")
-	if err != nil {
-		log.Fatalf("Failed to set environment variable: %v", err)
-	}
-
 }
 
 // StartMinioTestContainer starts a MinIO server in a Docker container for testing.
@@ -164,15 +111,7 @@ func StartMinioTestContainer(ctx context.Context) (*minio.Client, string, func()
 }
 
 func TestUploadToMinioWithTestContainer(t *testing.T) {
-	originalAccessKey := os.Getenv("MINIO_ACCESS_KEY")
-	originalSecretKey := os.Getenv("MINIO_SECRET_KEY")
-	originalBucket := os.Getenv("MINIO_BUCKET")
-	originalUseSSL := os.Getenv("MINIO_USE_SSL")
-	originalRootUser := os.Getenv("MINIO_ROOT_USER")
-	originalRootPassword := os.Getenv("MINIO_ROOT_PASSWORD")
-
-	defer restoreEnvs(originalAccessKey, originalSecretKey, originalBucket, originalUseSSL, originalRootUser, originalRootPassword)
-	setupEnvs()
+	// Existing setup for test containers...
 
 	ctx := context.Background()
 
@@ -180,37 +119,28 @@ func TestUploadToMinioWithTestContainer(t *testing.T) {
 	minioClient, minioURL, cleanup := StartMinioTestContainer(ctx)
 	defer cleanup()
 
-	// Set MINIO_ENDPOINT environment variable for the test
-	originalEndpoint := os.Getenv("MINIO_ENDPOINT")
-	// Reset after the test
-	defer func() {
-		err := os.Setenv("MINIO_ENDPOINT", originalEndpoint)
-		if err != nil {
-			t.Fatalf("Failed to reset environment variable: %v", err)
-		}
-	}()
+	// Create a test configuration with the test MinIO container's URL
+	testConfig := createTestConfig(minioURL)
 
-	err := os.Setenv("MINIO_ENDPOINT", minioURL)
+	// Initialize MinioRepository with the test configuration
+	minioRepo, err := minio2.NewMinioRepository(testConfig)
 	if err != nil {
-		t.Fatalf("Failed to set environment variable: %v", err)
+		t.Fatalf("Failed to create MinioRepository: %v", err)
 	}
-
-	bucketName := "test-bucket"
-	err = minioClient.MakeBucket(ctx, bucketName, minio.MakeBucketOptions{})
+	if minioRepo == nil {
+		t.Fatal("MinioRepository is nil")
+	}
+	err = minioClient.MakeBucket(ctx, testConfig.MinioBucket, minio.MakeBucketOptions{})
 	if err != nil {
 		t.Fatalf("Failed to create bucket: %v", err)
 	}
-
 	gin.SetMode(gin.TestMode)
-	r := gin.New()
+	router := gin.New()
 
-	// Define a test route that uses UploadToMinioWithContext
-	r.POST("/upload", func(c *gin.Context) {
-		// Simulate receiving a file part as `file`, similar to how you'd receive it in a real request
+	router.POST("/upload", func(c *gin.Context) {
+		// Simulate file upload as before, using the mockAudioFile struct
 		file := &mockAudioFile{content: "test content"}
-		// Use the c.Request.Context() for operations that need a context.Context
-		if err := utils.UploadToMinioWithContext(c, "testfile.mp3", file, int64(len(file.content))); err != nil {
-			// Handle error...
+		if err := minioRepo.UploadToMinioWithContext(c, "testfile.mp3", file, int64(len(file.content))); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload file"})
 			return
 		}
@@ -220,7 +150,7 @@ func TestUploadToMinioWithTestContainer(t *testing.T) {
 	// Create a test request to the route
 	req, _ := http.NewRequest(http.MethodPost, "/upload", nil)
 	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
+	router.ServeHTTP(w, req)
 
 	// Check the response
 	if w.Code != http.StatusOK {

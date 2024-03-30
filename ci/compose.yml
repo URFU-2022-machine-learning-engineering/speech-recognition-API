@@ -21,16 +21,16 @@ services:
       telemetry:
 
   otel-collector:
-    container_name: otel-collector
+    container_name: telemetry-collector
     restart: unless-stopped
     image: otel/opentelemetry-collector:latest
     volumes:
-      - /var/telemetry/otel-collector-config.yaml:/otel-collector-config.yaml
+      - /var/telemetry/otel-collector-config.yaml:/telemetry-collector-config.yaml
     ports:
       - "4317:4317" # OTLP gRPC receiver port, ensuring no conflict with Jaeger
       - "4318:4318" # OTLP HTTP receiver port, ensuring no conflict with Jaeger
       - "8889:8889" # Prometheus exporter port
-    command: ["--config=/otel-collector-config.yaml"]
+    command: ["--config=/telemetry-collector-config.yaml"]
     depends_on:
       jaeger:
         condition: service_started

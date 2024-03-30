@@ -1,4 +1,4 @@
-package handlers_structure
+package handlerStructure
 
 type SendData struct {
 	BucketName string `json:"bucket"`

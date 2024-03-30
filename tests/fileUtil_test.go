@@ -5,7 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"sr-api/helpers"
+	"sr-api/internal/core/domain"
 	"strings"
 	"testing"
 )
@@ -50,7 +50,7 @@ func performFileSignatureCheckTest(t *testing.T, fileContent string, expectedSta
 	file := &mockFile{content: fileContent}
 
 	r.POST("/test-file-signature", func(c *gin.Context) {
-		err := helpers.CheckFileSignatureWithGinContext(c, file)
+		err := domain.CheckFileSignatureWithGinContext(c, file)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
@@ -72,16 +72,16 @@ func performFileSignatureCheckTest(t *testing.T, fileContent string, expectedSta
 }
 
 func TestCheckFileSignature_ValidAudioFile(t *testing.T) {
-	validFileContent := "\xFF\xFB" + strings.Repeat("\x00", helpers.SignatureLength-2) // Simulate a valid audio file signature
+	validFileContent := "\xFF\xFB" + strings.Repeat("\x00", domain.SignatureLength-2) // Simulate a valid audio file signature
 	performFileSignatureCheckTest(t, validFileContent, http.StatusOK, "File signature verification successful")
 }
 
 func TestCheckFileSignature_SmallFile(t *testing.T) {
-	smallFileContent := strings.Repeat("\x00", helpers.SignatureLength-1) // Simulate a file that's too small
+	smallFileContent := strings.Repeat("\x00", domain.SignatureLength-1) // Simulate a file that's too small
 	performFileSignatureCheckTest(t, smallFileContent, http.StatusBadRequest, "{\"error\":\"file size is too small\"}")
 }
 
 func TestCheckFileSignature_NonAudioFile(t *testing.T) {
-	nonAudioFileContent := "Hello, World!" + strings.Repeat("\x00", helpers.SignatureLength-12) // Simulate a non-audio file
+	nonAudioFileContent := "Hello, World!" + strings.Repeat("\x00", domain.SignatureLength-12) // Simulate a non-audio file
 	performFileSignatureCheckTest(t, nonAudioFileContent, http.StatusBadRequest, "unknown file type")
 }

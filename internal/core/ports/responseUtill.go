@@ -1,4 +1,4 @@
-package utils
+package ports
 
 import (
 	"github.com/gin-gonic/gin"
@@ -6,12 +6,12 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
-	"sr-api/helpers"
+	"sr-api/internal/core/ports/telemetry"
 )
 
 // RespondWithError sends an error response along with tracing the operation.
 func RespondWithError(c *gin.Context, span trace.Span, err error, code int, message string) {
-	spanID := helpers.GetSpanId(span)
+	spanID := telemetry.GetSpanId(span)
 	span.SetAttributes(attribute.Int("http.status_code", code), attribute.String("error.message", message))
 	span.RecordError(err)
 
