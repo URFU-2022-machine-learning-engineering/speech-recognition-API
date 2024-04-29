@@ -13,43 +13,46 @@ import (
 )
 
 func main() {
+	setupLogger()
+	shutdown := setupTelemetry()
+	defer shutdown(context.Background())
 
-	// Set global log level to debug
-	zerolog.SetGlobalLevel(zerolog.DebugLevel)
-	zerolog.TimeFieldFormat = zerolog.TimeFormatUnixMs
-	log.Logger = log.Output(os.Stderr)
-	// Initialize OpenTelemetry
-	shutdown, err := telemetry.SetupOTelSDK(context.Background())
-	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to set up OpenTelemetry")
-	}
-	defer func() {
-		if err := shutdown(context.Background()); err != nil {
-			log.Fatal().Err(err).Msg("Failed to shut down OpenTelemetry properly")
-		}
-	}()
-	log.Debug().Msg("Loading configuration...")
 	cfg := config.LoadConfig()
-	if cfg == nil {
-		log.Fatal().Msg("Configuration is nil after loading")
-	}
-
 	dep, err := handler.NewUploadHandlerDependencies(cfg)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to initialize dependencies")
-	}
+	checkError(err, "Failed to initialize dependencies")
 
-	log.Debug().Msg("Initializing server...")
-	r := gin.New()
-	log.Debug().Msg("Setting up OpenTelemetry middleware")
-	r.Use(otelgin.Middleware("sr-api"))
-
-	log.Debug().Msg("Setting up routes")
+	r := setupServer()
 	r.GET("/status", handler.StatusHandler)
 	r.POST("/upload", dep.UploadHandler)
 
-	log.Debug().Msg("Starting server...")
-	if err := r.Run(":8080"); err != nil {
-		log.Fatal().Err(err).Msg("Failed to start server")
+	startServer(r)
+}
+
+func setupLogger() {
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnixMs
+	log.Logger = log.Output(os.Stderr)
+}
+
+func setupTelemetry() func(context.Context) error {
+	shutdown, err := telemetry.SetupOTelSDK(context.Background())
+	checkError(err, "Failed to set up OpenTelemetry")
+	return shutdown
+}
+
+func setupServer() *gin.Engine {
+	r := gin.New()
+	r.Use(otelgin.Middleware("sr-api"))
+	return r
+}
+
+func startServer(r *gin.Engine) {
+	err := r.Run(":8080")
+	checkError(err, "Failed to start server")
+}
+
+func checkError(err error, msg string) {
+	if err != nil {
+		log.Fatal().Err(err).Msg(msg)
 	}
 }

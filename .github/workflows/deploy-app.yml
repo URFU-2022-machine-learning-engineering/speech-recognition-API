@@ -17,11 +17,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Try dry run
+        run: docker compose -f ci/compose.yml up -d --remove-orphans --wait --dry-run
+
       - name: Stop the current installation
         run: docker compose -f ci/compose.yml down --rmi all --remove-orphans
 
       - name: Set up Docker Compose
-        run: docker compose -f ci/compose.yml up -d --remove-orphans
+        run: docker compose -f ci/compose.yml up -d --remove-orphans --wait
 
       - name: Wait for service to be available
         run: |
