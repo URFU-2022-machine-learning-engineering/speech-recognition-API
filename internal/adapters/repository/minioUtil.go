@@ -33,7 +33,7 @@ func NewMinioRepository(cfg *config.AppConfig) (*MinioRepository, error) {
 
 	return &MinioRepository{
 		Client: minioClient,
-		config: cfg, // Ensure this is correctly assigned
+		config: cfg,
 	}, nil
 }
 
@@ -53,7 +53,7 @@ func (repo *MinioRepository) UploadToMinioWithContext(c *gin.Context, filename s
 
 	ctx, span := telemetry.StartSpanFromGinContext(c, "UploadToMinio")
 	bucketName := repo.config.MinioBucket
-	// Ensure bucketName is not empty
+
 	if bucketName == "" {
 		return fmt.Errorf("bucket name is empty")
 	}
@@ -61,7 +61,6 @@ func (repo *MinioRepository) UploadToMinioWithContext(c *gin.Context, filename s
 	defer span.End()
 	spanID := telemetry.GetSpanId(span)
 
-	// Perform the upload using the Minio client in the repository
 	info, err := repo.Client.PutObject(ctx, bucketName, filename, file, size, minio.PutObjectOptions{})
 	if err != nil {
 		log.Error().Str("span_id", spanID).Err(err).Str("minio.bucket", bucketName).Msg("Failed to upload file")

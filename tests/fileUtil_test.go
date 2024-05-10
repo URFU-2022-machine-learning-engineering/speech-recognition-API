@@ -10,7 +10,13 @@ import (
 	"testing"
 )
 
-func (m *mockFile) Seek(offset int64, whence int) (int64, error) {
+// MockFile Define a mock implementation of multipart.File for testing purposes
+type MockFile struct {
+	content string
+	offset  int64
+}
+
+func (m *MockFile) Seek(offset int64, whence int) (int64, error) {
 	switch whence {
 	case io.SeekStart:
 		m.offset = offset
@@ -22,7 +28,7 @@ func (m *mockFile) Seek(offset int64, whence int) (int64, error) {
 	return m.offset, nil
 }
 
-func (m *mockFile) Read(p []byte) (n int, err error) {
+func (m *MockFile) Read(p []byte) (n int, err error) {
 	if m.offset >= int64(len(m.content)) {
 		return 0, io.EOF
 	}
@@ -31,7 +37,7 @@ func (m *mockFile) Read(p []byte) (n int, err error) {
 	return n, nil
 }
 
-func (m *mockFile) ReadAt(p []byte, off int64) (n int, err error) {
+func (m *MockFile) ReadAt(p []byte, off int64) (n int, err error) {
 	if off >= int64(len(m.content)) {
 		return 0, io.EOF
 	}
@@ -39,7 +45,7 @@ func (m *mockFile) ReadAt(p []byte, off int64) (n int, err error) {
 	return n, nil
 }
 
-func (m *mockFile) Close() error {
+func (m *MockFile) Close() error {
 	return nil // Mock implementation, does nothing
 }
 
@@ -47,7 +53,7 @@ func performFileSignatureCheckTest(t *testing.T, fileContent string, expectedSta
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 
-	file := &mockFile{content: fileContent}
+	file := &MockFile{content: fileContent}
 
 	r.POST("/test-file-signature", func(c *gin.Context) {
 		err := domain.CheckFileSignatureWithGinContext(c, file)

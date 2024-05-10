@@ -61,14 +61,12 @@ func (dep *UploadHandlerDependencies) UploadHandler(c *gin.Context) {
 	defer openedFile.Close()
 	log.Debug().Str("span_id", spanID).Msg("Opened file successfully")
 
-	// Check file signature with tracing (adapted to use Gin context)
 	if err := domain.CheckFileSignatureWithGinContext(c, openedFile); err != nil {
 		ports.RespondWithError(c, span, err, http.StatusBadRequest, "Invalid file signature")
 		return
 	}
 	log.Info().Str("span_id", spanID).Msg("File signature verified")
 
-	// Generate a new filename and attempt to upload
 	fileExt := filepath.Ext(file.Filename)
 	fileUUID, err := domain.GenerateUIDWithContext(c)
 	if err != nil {
@@ -83,7 +81,7 @@ func (dep *UploadHandlerDependencies) UploadHandler(c *gin.Context) {
 
 	log.Info().Str("span_id", spanID).Str("file_name", fileName).Msg("File uploaded successfully")
 	span.AddEvent("File uploaded successfully", trace.WithAttributes(attribute.String("filename", fileName)))
-	// Process the file after successful upload
+
 	recognitionResult, err := dep.WhisperRepo.SendToWhisper(c, fileName)
 	if err != nil {
 		ports.RespondWithError(c, span, err, http.StatusInternalServerError, "Failed to process file")
